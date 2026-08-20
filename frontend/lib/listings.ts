@@ -3,6 +3,7 @@ import {
   type ListingDetail,
   type ListingFilters,
   type ListingSummary,
+  type MapPin,
   type Paginated,
 } from 'shared'
 import { ApiError, serverFetch, serverFetchAuthed } from './api'
@@ -38,4 +39,11 @@ export async function fetchListing(id: string): Promise<ListingDetail | null> {
 export async function fetchOwnListings(): Promise<ListingSummary[]> {
   const body = await serverFetchAuthed<{ items: ListingSummary[] }>('/api/listings/mine')
   return body.items
+}
+
+export async function fetchMapPins(filters: ListingFilters): Promise<MapPin[]> {
+  const body = await serverFetch<{ pins: MapPin[] }>(
+    `/api/listings/map${listingFiltersToQuery({ ...filters, page: 1 })}`,
+  )
+  return body.pins
 }

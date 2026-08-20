@@ -13,6 +13,7 @@ import {
   createListing,
   deleteListing,
   getListingDetail,
+  listMapPins,
   listOwnListings,
   listPublicListings,
   transitionListing,
@@ -129,6 +130,16 @@ const updateSchema = listingFields.partial().superRefine(checkCoordinates)
  */
 listingsRouter.get('/', async (req, res) => {
   res.json(await listPublicListings(parseListingFilters(req.query)))
+})
+
+/**
+ * GET /api/listings/map — coordinates for every match, unpaginated.
+ *
+ * Before '/:id' for the same reason as '/mine': Express matches in order and
+ * would otherwise read "map" as an id.
+ */
+listingsRouter.get('/map', async (req, res) => {
+  res.json({ pins: await listMapPins(parseListingFilters(req.query)) })
 })
 
 /**

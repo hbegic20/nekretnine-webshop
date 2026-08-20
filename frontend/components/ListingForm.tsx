@@ -8,9 +8,11 @@ import {
   TOWNS,
   TRANSACTION_TYPES,
   type ListingDetail,
+  type Town,
 } from 'shared'
 import { readApiError } from '@/lib/api-client'
 import { Field, FormError, SubmitButton, inputClass } from './AuthFields'
+import { LocationPicker } from './map/LocationPicker'
 
 const PROPERTY_LABELS: Record<string, string> = {
   apartment: 'Stan',
@@ -46,6 +48,15 @@ export function ListingForm({ listing }: { listing?: ListingDetail }) {
   const [error, setError] = useState<string | null>(null)
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({})
   const [pending, setPending] = useState(false)
+
+  /*
+   * The town select is controlled, purely so the map can follow it. Everything
+   * else in this form is uncontrolled and read from FormData at submit — which
+   * is less code and fewer re-renders. Lifting a single field into state
+   * because something else depends on it is the cheap version of "make it
+   * controlled when you must, not by default".
+   */
+  const [town, setTown] = useState<Town>(listing?.town ?? 'bugojno')
 
   /**
    * Warn before the seller submits, not after.
@@ -161,7 +172,12 @@ export function ListingForm({ listing }: { listing?: ListingDetail }) {
           </select>
         </Field>
         <Field label="Grad" error={fieldErrors.town}>
-          <select name="town" defaultValue={listing?.town ?? 'bugojno'} className={inputClass}>
+          <select
+            name="town"
+            value={town}
+            onChange={(event) => setTown(event.target.value as Town)}
+            className={inputClass}
+          >
             {TOWNS.map((t) => (
               <option key={t.slug} value={t.slug}>{t.label}</option>
             ))}
@@ -202,19 +218,15 @@ export function ListingForm({ listing }: { listing?: ListingDetail }) {
         </Field>
       </div>
 
-      {/*
-        Coordinates are typed in for now. Phase 4.4 replaces this with a map
-        the seller drops a pin on — which is why there is no geocoding service
-        anywhere in this project (ARCHITECTURE.md §4.1).
-      */}
-      <div className="grid grid-cols-2 gap-4">
-        <Field label="Geo. širina (lat)" error={fieldErrors.lat}>
-          <input name="lat" type="number" step="any" defaultValue={listing?.lat ?? ''} className={inputClass} />
-        </Field>
-        <Field label="Geo. dužina (lng)" error={fieldErrors.lng}>
-          <input name="lng" type="number" step="any" defaultValue={listing?.lng ?? ''} className={inputClass} />
-        </Field>
-      </div>
+      <LocationPicker
+        town={town}
+        initial={
+          listing?.lat != null && listing?.lng != null
+            ? { lat: listing.lat, lng: listing.lng }
+            : null
+        }
+        error={fieldErrors.lat ?? fieldErrors.lng}
+      />
 
       <fieldset className="space-y-4 rounded-md border border-black/10 dark:border-white/10 p-4">
         <legend className="px-1 text-sm font-medium">Kontakt</legend>

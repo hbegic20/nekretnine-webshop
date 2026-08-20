@@ -3,6 +3,7 @@ import { countActiveFilters, listingFiltersToQuery, listingsCountLabel, parseLis
 import { fetchPublicListings } from '@/lib/listings'
 import { ListingCard } from '@/components/ListingCard'
 import { SearchFilters } from '@/components/SearchFilters'
+import { ViewToggle } from '@/components/ViewToggle'
 
 export const metadata = {
   description:
@@ -32,7 +33,10 @@ export default async function HomePage({
 
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-12">
-      <h1 className="text-2xl font-semibold tracking-tight">Oglasi</h1>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1 className="text-2xl font-semibold tracking-tight">Oglasi</h1>
+        <ViewToggle filters={filters} active="list" />
+      </div>
 
       <div className="mt-6">
         <SearchFilters filters={filters} />

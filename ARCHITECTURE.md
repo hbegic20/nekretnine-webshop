@@ -516,6 +516,41 @@ being separate steps exists to allow.
 `pg_trgm` for typo-tolerance is a later addition if searches come back empty
 too often.
 
+### 7.4 The map, and where its tiles come from
+
+**Leaflet with OpenStreetMap's own tiles.** No API key, no billing account, no
+per-request quota — which is why no map service appears in the dependency list
+alongside R2 and Resend.
+
+Three things worth recording:
+
+**The map is the reason there is no geocoding service.** Sellers place their
+listing by clicking the map, so nothing ever has to turn an address into
+coordinates. That avoids a paid dependency, and it is also more accurate here:
+addresses in small Bosnian towns geocode badly, while the person selling the
+house knows exactly where it is.
+
+**Markers are `divIcon`s, not images.** Leaflet's default marker is a PNG whose
+URL it assembles at runtime, which bundlers rewrite — the famous broken-image
+bug, usually patched by re-pointing Leaflet at the right files. A `divIcon` is
+just HTML, so the problem never arises, and it lets each marker show its price,
+which is the most useful thing a property pin can do.
+
+**The map is client-only.** Leaflet touches `window` while measuring its
+container, so it is loaded with `next/dynamic` and `ssr: false` behind a thin
+Client Component boundary. Pages stay Server Components; the map is the single
+island that is not. It is therefore invisible to search engines — fine, since
+listing pages carry the SEO and nobody finds property by indexing a map tile.
+
+**Tile usage policy — the one thing to watch before launch.** OSM's tiles are
+donated infrastructure, and their usage policy asks that heavy or commercial
+use move to a proper provider. At this site's traffic we are comfortably
+inside what it permits. The trigger to switch is real traffic growth or any
+commercial framing of the site; MapTiler and Stadia both have free tiers that
+cover a site this size, and switching is a one-line URL change in
+`LeafletMap.tsx` plus an attribution update. Flagged again in the
+pre-production list.
+
 ### 7.3 When to revisit
 
 Concretely: when listings pass ~10,000, *or* when a filtered query's `EXPLAIN

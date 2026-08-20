@@ -102,3 +102,32 @@ export interface Paginated<T> {
  * for review" *before* the seller submits it, rather than surprising them.
  */
 export const FIELDS_EDITABLE_WHILE_PUBLISHED = ['price'] as const
+
+/**
+ * What a map marker needs, and nothing else.
+ *
+ * A map showing every match cannot be paginated — the whole point is seeing
+ * the spread — so this shape is deliberately tiny. 500 of these is a few tens
+ * of kilobytes; 500 `ListingSummary` objects with descriptions and image URLs
+ * would be megabytes, and the map would stutter while parsing them.
+ */
+export interface MapPin {
+  id: string
+  lat: number
+  lng: number
+  price: number
+  title: string
+  transactionType: TransactionType
+  propertyType: PropertyType
+}
+
+/**
+ * Cap on markers returned for one map view.
+ *
+ * Beyond a few hundred, individual pins stop being readable anyway and the
+ * right answer is clustering or server-side aggregation — neither of which is
+ * worth building for a site with hundreds of listings. The cap exists so that
+ * if we are ever wrong about the scale, the failure is "the map shows the
+ * first 500" rather than a browser tab locking up.
+ */
+export const MAX_MAP_PINS = 500

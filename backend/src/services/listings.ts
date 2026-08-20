@@ -3,8 +3,10 @@ import {
   ALLOWED_TRANSITIONS,
   DEFAULT_EXPIRY_DAYS,
   LISTINGS_PER_PAGE,
+  MAX_MAP_PINS,
   PUBLIC_STATUSES,
   type ListingFilters,
+  type MapPin,
   type ListingDetail,
   type ListingImage,
   type ListingInput,
@@ -274,6 +276,46 @@ export async function listPublicListings(
     page,
     perPage,
   }
+}
+
+/**
+ * Markers for the map view.
+ *
+ * Not paginated, because a map that shows page 1 of the pins is worse than no
+ * map — the spread of prices across the region *is* the information. Instead
+ * it selects only the six columns a marker needs and caps the row count.
+ *
+ * Listings without coordinates are excluded rather than dropped at longitude
+ * 0. There is no sensible marker for "somewhere in Bugojno, unspecified", and
+ * inventing one puts a pin in the Gulf of Guinea.
+ */
+export async function listMapPins(filters: ListingFilters): Promise<MapPin[]> {
+  const rows = await db
+    .select({
+      id: listings.id,
+      lat: listings.lat,
+      lng: listings.lng,
+      price: listings.price,
+      title: listings.title,
+      transactionType: listings.transactionType,
+      propertyType: listings.propertyType,
+    })
+    .from(listings)
+    .where(
+      publiclyVisible(
+        sql`${listings.lat} is not null`,
+        sql`${listings.lng} is not null`,
+        ...filterConditions(filters),
+      ),
+    )
+    .orderBy(...orderFor(filters))
+    .limit(MAX_MAP_PINS)
+
+  // The nulls are excluded in SQL above; this narrows the type for TypeScript,
+  // which cannot know that a WHERE clause constrains a column's nullability.
+  return rows.flatMap((row) =>
+    row.lat === null || row.lng === null ? [] : [{ ...row, lat: row.lat, lng: row.lng }],
+  )
 }
 
 /** Everything belonging to one seller, in every status. */

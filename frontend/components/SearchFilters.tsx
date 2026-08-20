@@ -1,9 +1,11 @@
 'use client'
 
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { useState } from 'react'
 import {
   LISTING_SORTS,
+  listingFiltersToQuery,
   PROPERTY_TYPES,
   TOWNS,
   TRANSACTION_TYPES,
@@ -68,6 +70,22 @@ export function SearchFilters({ filters }: { filters: ListingFilters }) {
 
   return (
     <form
+      /*
+       * The key is what makes client-side navigation safe here.
+       *
+       * Every input below is uncontrolled with a `defaultValue`, and
+       * defaultValue is only read when the element mounts. Under a full page
+       * load that was fine. Under client navigation — pressing "Poništi
+       * filtere", or the browser's back button — React reuses the same DOM
+       * nodes, so the boxes would keep whatever was typed while the URL, and
+       * the results, said something else.
+       *
+       * Keying the form on the serialised filters means a URL change is a new
+       * key, React remounts the subtree, and the fields re-read from props.
+       * The alternative is making all eleven inputs controlled, which is far
+       * more code for the same outcome.
+       */
+      key={listingFiltersToQuery(filters)}
       method="get"
       action="/"
       onSubmit={onSubmit}
@@ -155,9 +173,9 @@ export function SearchFilters({ filters }: { filters: ListingFilters }) {
 
       {activeCount > 0 && (
         <p className="text-sm">
-          <a href="/" className="underline underline-offset-4 opacity-70 hover:opacity-100">
+          <Link href="/" className="underline underline-offset-4 opacity-70 hover:opacity-100">
             Poništi filtere ({activeCount})
-          </a>
+          </Link>
         </p>
       )}
     </form>

@@ -14,8 +14,10 @@ export function SignOutButton() {
       // fired by anything that loads a URL — including a prefetcher or an
       // <img> tag on someone else's site.
       await fetch('/api/auth/logout', { method: 'POST' })
-      router.refresh()
+      // Same order as signing in: land on the new route, then refresh it so
+      // the root layout is rebuilt without a session.
       router.push('/')
+      router.refresh()
     } finally {
       setPending(false)
     }

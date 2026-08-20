@@ -112,8 +112,16 @@ export function ListingForm({ listing }: { listing?: ListingDetail }) {
         return
       }
 
-      router.refresh()
+      /*
+       * push() then refresh(), not the other way round. Refreshing first
+       * re-renders the form we are about to leave; refreshing after means the
+       * destination is rebuilt with the listing that was just saved.
+       *
+       * No full reload here, because nothing in the layout changed — only the
+       * page data did.
+       */
       router.push('/moji-oglasi')
+      router.refresh()
     } catch {
       setError('Ne mogu se povezati sa serverom.')
     } finally {

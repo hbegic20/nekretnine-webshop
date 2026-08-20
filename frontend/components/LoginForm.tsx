@@ -45,16 +45,22 @@ export function LoginForm({ nextPath }: { nextPath: string }) {
       }
 
       /*
-       * `refresh()` before `push()`, and both are needed.
+       * Navigate first, refresh second. The order is the whole fix.
        *
-       * Server Components were rendered for a signed-out visitor and are
-       * cached that way. Navigating alone would reuse that cached output and
-       * the header would still show "Prijava" despite a valid session.
-       * `refresh()` throws the server-rendered cache away so the next render
-       * sees the new cookie.
+       * The <Header /> lives in the root layout, and the App Router
+       * deliberately does not re-render a shared layout when you move between
+       * routes that use it — "partial rendering". Normally that is exactly
+       * what you want; here it meant the header kept showing "Prijava" after
+       * a successful sign-in until the page was reloaded by hand.
+       *
+       * The original code called refresh() *before* push(), which refreshed
+       * the page being left and then navigated using the layout it already
+       * had. Refreshing after the navigation re-fetches the route we actually
+       * landed on, layouts included, so the header is rebuilt with the new
+       * session cookie.
        */
-      router.refresh()
       router.push(nextPath)
+      router.refresh()
     } catch {
       setError('Ne mogu se povezati sa serverom. Provjerite konekciju.')
     } finally {

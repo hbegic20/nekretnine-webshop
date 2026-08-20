@@ -44,10 +44,10 @@ export function RegisterForm() {
         return
       }
 
-      // Registration signs you in, so this is the same refresh-then-navigate
-      // dance as the login form.
-      router.refresh()
+      // Registration signs you in, so it needs the same navigate-then-refresh
+      // order as the login form — see the note there.
       router.push('/')
+      router.refresh()
     } catch {
       setError('Ne mogu se povezati sa serverom. Provjerite konekciju.')
     } finally {

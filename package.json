@@ -2,7 +2,11 @@
   "name": "nekretnine",
   "version": "0.1.0",
   "private": true,
-  "workspaces": ["shared", "backend", "frontend"],
+  "workspaces": [
+    "shared",
+    "backend",
+    "frontend"
+  ],
   "scripts": {
     "dev:backend": "npm run dev --workspace=backend",
     "dev:frontend": "npm run dev --workspace=frontend",
@@ -14,7 +18,10 @@
     "db:down": "docker compose -f infra/docker-compose.yml down",
     "db:psql": "docker compose -f infra/docker-compose.yml exec postgres psql -U nekretnine -d nekretnine",
     "db:generate": "npm run db:generate --workspace=backend",
-    "db:migrate": "npm run db:migrate --workspace=backend"
+    "db:migrate": "npm run db:migrate --workspace=backend",
+    "db:seed": "npm run db:seed --workspace=backend"
   },
-  "engines": { "node": ">=20" }
+  "engines": {
+    "node": ">=20"
+  }
 }

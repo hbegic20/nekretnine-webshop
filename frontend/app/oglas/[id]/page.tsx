@@ -1,0 +1,117 @@
+import type { Metadata } from 'next'
+import Link from 'next/link'
+import { notFound } from 'next/navigation'
+import { formatPrice, townLabel } from 'shared'
+import { fetchListing } from '@/lib/listings'
+import { StatusBadge } from '@/components/StatusBadge'
+
+const PROPERTY_LABELS: Record<string, string> = {
+  apartment: 'Stan',
+  house: 'Kuća',
+  land: 'Zemljište',
+  commercial: 'Poslovni prostor',
+  garage: 'Garaža',
+}
+
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}): Promise<Metadata> {
+  const { id } = await params
+  const listing = await fetchListing(id)
+  if (!listing) return { title: 'Oglas nije pronađen' }
+
+  return {
+    title: listing.title,
+    description: listing.description.slice(0, 160),
+    // A listing page is the whole point of the site being server-rendered:
+    // this is what gets shared in a WhatsApp group and indexed by Google.
+    openGraph: { title: listing.title, description: listing.description.slice(0, 200) },
+  }
+}
+
+export default async function ListingPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  const listing = await fetchListing(id)
+
+  // Covers both "no such listing" and "not yours to see" — the API does not
+  // distinguish them, and neither should this page.
+  if (!listing) notFound()
+
+  /*
+   * There is no ownership check here, and there should not be.
+   *
+   * `address` and `rejectionReason` come back as null unless the API decided
+   * this viewer is the owner or an admin (services/listings.ts, `canSeePrivate`).
+   * Re-deciding that in the browser would mean two implementations of the same
+   * rule, and the one in the page is the one that cannot be trusted anyway —
+   * anything the server sends has already left the building.
+   *
+   * So: render what arrived. Absence is the permission check.
+   */
+  const facts: Array<[string, string]> = [
+    ['Vrsta', PROPERTY_LABELS[listing.propertyType] ?? listing.propertyType],
+    ['Grad', townLabel(listing.town)],
+    ...(listing.neighbourhood ? ([['Naselje', listing.neighbourhood]] as Array<[string, string]>) : []),
+    ...(listing.sizeM2 ? ([['Površina', `${listing.sizeM2} m²`]] as Array<[string, string]>) : []),
+    ...(listing.rooms !== null ? ([['Sobe', String(listing.rooms)]] as Array<[string, string]>) : []),
+    ...(listing.bedrooms !== null ? ([['Spavaće sobe', String(listing.bedrooms)]] as Array<[string, string]>) : []),
+    ...(listing.bathrooms !== null ? ([['Kupatila', String(listing.bathrooms)]] as Array<[string, string]>) : []),
+    ...(listing.floor !== null ? ([['Sprat', String(listing.floor)]] as Array<[string, string]>) : []),
+    ...(listing.yearBuilt ? ([['Godina izgradnje', String(listing.yearBuilt)]] as Array<[string, string]>) : []),
+  ]
+
+  return (
+    <main className="mx-auto w-full max-w-3xl px-6 py-12">
+      <Link href="/" className="text-sm underline underline-offset-4 opacity-70 hover:opacity-100">
+        ← Svi oglasi
+      </Link>
+
+      <div className="mt-6 flex items-start justify-between gap-4">
+        <h1 className="text-2xl font-semibold tracking-tight">{listing.title}</h1>
+        {listing.status !== 'PUBLISHED' && <StatusBadge status={listing.status} />}
+      </div>
+
+      <p className="mt-3 text-2xl font-semibold">
+        {formatPrice(listing.price)}
+        {listing.transactionType === 'rent' && (
+          <span className="text-base font-normal opacity-60"> / mjesečno</span>
+        )}
+      </p>
+
+      {listing.rejectionReason && (
+        <p className="mt-4 rounded-md border border-red-500/30 bg-red-500/10 px-3 py-2 text-sm">
+          <strong>Razlog odbijanja:</strong> {listing.rejectionReason}
+        </p>
+      )}
+
+      {/* The gallery, the map and the inquiry form arrive in Phase 4.5. */}
+      {listing.description && (
+        <p className="mt-6 whitespace-pre-line leading-relaxed">{listing.description}</p>
+      )}
+
+      <dl className="mt-8 grid grid-cols-2 gap-x-6 gap-y-3 sm:grid-cols-3">
+        {facts.map(([label, value]) => (
+          <div key={label}>
+            <dt className="text-xs uppercase tracking-wide opacity-50">{label}</dt>
+            <dd className="text-sm">{value}</dd>
+          </div>
+        ))}
+      </dl>
+
+      <section className="mt-10 rounded-lg border border-black/10 dark:border-white/10 p-4">
+        <h2 className="text-sm font-medium">Kontakt</h2>
+        <p className="mt-2 text-sm">{listing.contactName}</p>
+        <p className="text-sm">
+          <a href={`tel:${listing.contactPhone.replace(/\s/g, '')}`} className="underline underline-offset-4">
+            {listing.contactPhone}
+          </a>
+        </p>
+        {listing.address && (
+          <p className="mt-2 text-sm opacity-60">Adresa (vidljiva samo vama): {listing.address}</p>
+        )}
+      </section>
+    </main>
+  )
+}

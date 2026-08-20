@@ -21,6 +21,12 @@ export async function Header() {
         <div className="flex items-center gap-4">
           {user ? (
             <>
+              <Link
+                href="/moji-oglasi"
+                className="text-sm underline underline-offset-4 opacity-70 hover:opacity-100"
+              >
+                Moji oglasi
+              </Link>
               <span className="text-sm opacity-70">{user.name}</span>
               {user.isAdmin && (
                 <span className="rounded-full border border-black/15 dark:border-white/20 px-2 py-0.5 text-xs">

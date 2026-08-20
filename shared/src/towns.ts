@@ -42,3 +42,23 @@ export const REGION_BOUNDS = {
   north: 44.45,
   east: 17.80,
 } as const
+
+/**
+ * Is this coordinate plausibly in our region?
+ *
+ * The site covers seven towns in one small area, so a pin dropped in Australia
+ * is a bug or an abusive submission, not a listing. Rejecting it keeps the map
+ * from zooming out to fit a point nobody meant to place.
+ *
+ * The padding is generous on purpose — a house genuinely outside the town
+ * centres but still in the area should not be refused. This is a sanity check,
+ * not a property boundary.
+ */
+export function isWithinRegion(lat: number, lng: number, paddingDegrees = 0.5): boolean {
+  return (
+    lat >= REGION_BOUNDS.south - paddingDegrees &&
+    lat <= REGION_BOUNDS.north + paddingDegrees &&
+    lng >= REGION_BOUNDS.west - paddingDegrees &&
+    lng <= REGION_BOUNDS.east + paddingDegrees
+  )
+}

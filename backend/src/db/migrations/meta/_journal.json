@@ -8,6 +8,13 @@
       "when": 1787219605161,
       "tag": "0000_initial_schema",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1787225543289,
+      "tag": "0001_listing_soft_delete",
+      "breakpoints": true
     }
   ]
 }

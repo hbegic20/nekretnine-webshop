@@ -1,105 +1,64 @@
 import Link from 'next/link'
-import { TOWNS } from 'shared'
-import { serverFetch } from '@/lib/api'
-import { getCurrentUser } from '@/lib/auth'
+import { fetchPublicListings } from '@/lib/listings'
+import { ListingCard } from '@/components/ListingCard'
 
-/**
- * Phase 3 placeholder. This is not the real home page — it exists to prove the
- * scaffold is wired together end to end:
- *
- *   1. a Server Component reaches the API                    (Next.js → Express)
- *   2. the API reaches Postgres                              (Express → pg)
- *   3. both apps import the same constants from /shared      (workspace wiring)
- *
- * If all three render, the plumbing works. Phase 4 replaces this with search.
- */
-type Readiness = { status: string; database: string }
-
-async function checkApi(): Promise<Readiness | { status: 'unreachable'; database: 'unknown' }> {
-  try {
-    return await serverFetch<Readiness>('/health/ready')
-  } catch {
-    return { status: 'unreachable', database: 'unknown' }
-  }
+export const metadata = {
+  description:
+    'Oglasi za prodaju i najam nekretnina u Bugojnu, Gornjem Vakufu-Uskoplju, Donjem Vakufu, Jajcu, Kupresu, Travniku i Novom Travniku.',
 }
 
-export default async function HomePage() {
-  // Both are independent, so fire them together rather than awaiting one and
-  // then the other — two round trips become one wait.
-  const [health, user] = await Promise.all([checkApi(), getCurrentUser()])
-  const healthy = health.status === 'ready'
+export default async function HomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ page?: string }>
+}) {
+  const { page: pageParam } = await searchParams
+  const page = Math.max(1, Number(pageParam ?? 1) || 1)
+
+  const { items, total, perPage } = await fetchPublicListings(page)
+  const lastPage = Math.max(1, Math.ceil(total / perPage))
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-6 py-16">
-      <h1 className="text-3xl font-semibold tracking-tight">Nekretnine</h1>
-      <p className="mt-2 text-sm opacity-70">
-        {user ? (
-          <>Prijavljeni ste kao {user.name}.</>
-        ) : (
-          <>
-            Auth is live.{' '}
-            <Link href="/register" className="underline underline-offset-4">
-              Registrujte se
-            </Link>{' '}
-            or{' '}
-            <Link href="/login" className="underline underline-offset-4">
-              prijavite se
-            </Link>
-            . Listings and search come next.
-          </>
-        )}
+    <main className="mx-auto w-full max-w-3xl px-6 py-12">
+      <h1 className="text-2xl font-semibold tracking-tight">Oglasi</h1>
+      <p className="mt-1 text-sm opacity-70">
+        {total} {total === 1 ? 'oglas' : 'oglasa'} u ponudi.
+        {/* Filters and keyword search arrive in Phase 4.3. */}
       </p>
 
-      <section className="mt-10">
-        <h2 className="text-xs font-medium uppercase tracking-widest opacity-60">Stack check</h2>
-        <dl className="mt-3 divide-y divide-black/10 dark:divide-white/10 rounded-lg border border-black/10 dark:border-white/10">
-          <div className="flex items-center justify-between px-4 py-3">
-            <dt className="text-sm">Frontend</dt>
-            <dd className="text-sm font-medium text-green-600 dark:text-green-400">rendering</dd>
-          </div>
-          <div className="flex items-center justify-between px-4 py-3">
-            <dt className="text-sm">API</dt>
-            <dd
-              className={`text-sm font-medium ${healthy ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
-            >
-              {health.status}
-            </dd>
-          </div>
-          <div className="flex items-center justify-between px-4 py-3">
-            <dt className="text-sm">Database</dt>
-            <dd
-              className={`text-sm font-medium ${health.database === 'up' ? 'text-green-600 dark:text-green-400' : 'text-red-600 dark:text-red-400'}`}
-            >
-              {health.database}
-            </dd>
-          </div>
-        </dl>
-        {!healthy && (
-          <p className="mt-3 text-sm text-red-600 dark:text-red-400">
-            API unreachable. Start Postgres with <code>npm run db:up</code> and the API with{' '}
-            <code>npm run dev:backend</code>.
-          </p>
-        )}
-      </section>
-
-      <section className="mt-10">
-        <h2 className="text-xs font-medium uppercase tracking-widest opacity-60">
-          Coverage — {TOWNS.length} towns
-        </h2>
-        <ul className="mt-3 flex flex-wrap gap-2">
-          {TOWNS.map((town) => (
-            <li
-              key={town.slug}
-              className="rounded-full border border-black/10 dark:border-white/15 px-3 py-1 text-sm"
-            >
-              {town.label}
-            </li>
-          ))}
-        </ul>
-        <p className="mt-3 text-xs opacity-60">
-          Imported from <code>/shared</code> — the same array the database enum is built from.
+      {items.length === 0 ? (
+        <p className="mt-10 rounded-lg border border-dashed border-black/15 dark:border-white/20 p-8 text-center text-sm opacity-70">
+          Trenutno nema objavljenih oglasa.
         </p>
-      </section>
+      ) : (
+        <div className="mt-8 grid gap-4 sm:grid-cols-2">
+          {items.map((listing) => (
+            <ListingCard key={listing.id} listing={listing} />
+          ))}
+        </div>
+      )}
+
+      {lastPage > 1 && (
+        <nav className="mt-10 flex items-center justify-between text-sm" aria-label="Stranice">
+          {page > 1 ? (
+            <Link href={`/?page=${page - 1}`} className="underline underline-offset-4">
+              ← Prethodna
+            </Link>
+          ) : (
+            <span className="opacity-30">← Prethodna</span>
+          )}
+          <span className="opacity-60">
+            Stranica {page} od {lastPage}
+          </span>
+          {page < lastPage ? (
+            <Link href={`/?page=${page + 1}`} className="underline underline-offset-4">
+              Sljedeća →
+            </Link>
+          ) : (
+            <span className="opacity-30">Sljedeća →</span>
+          )}
+        </nav>
+      )}
     </main>
   )
 }

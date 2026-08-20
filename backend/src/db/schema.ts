@@ -151,6 +151,21 @@ export const listings = pgTable(
     /** Shown to the seller so they know what to fix before resubmitting. */
     rejectionReason: text('rejection_reason'),
 
+    /**
+     * Soft delete. A listing a seller "deletes" keeps its row and disappears
+     * from every view, because hard-deleting it would cascade away its
+     * `payments` rows — the record that this person paid us — and its
+     * inquiry history along with them. Losing financial records to a
+     * misclick is not a trade worth making.
+     *
+     * The cost is that every query which returns listings must say
+     * `isNull(listings.deletedAt)`. Forget it once and deleted listings
+     * reappear on the site. That is why services/listings.ts funnels every
+     * read through a single `visible()` helper instead of writing the
+     * condition out by hand each time.
+     */
+    deletedAt: timestamp('deleted_at', { withTimezone: true }),
+
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -159,7 +174,12 @@ export const listings = pgTable(
     // Column order in a composite index matters: Postgres can only use it
     // left-to-right, so (status, published_at) helps "published, newest first"
     // while (published_at, status) would not.
-    index('listings_status_published_at_idx').on(t.status, t.publishedAt.desc()),
+    // Partial: the public listing page only ever wants rows that are not
+    // deleted, so the index does not carry the ones that are. It is smaller,
+    // and it documents the intended query shape.
+    index('listings_status_published_at_idx')
+      .on(t.status, t.publishedAt.desc())
+      .where(sql`deleted_at is null`),
     index('listings_status_town_price_idx').on(t.status, t.town, t.price),
     index('listings_owner_id_idx').on(t.ownerId),
     // Map viewport queries: WHERE lat BETWEEN … AND lng BETWEEN …

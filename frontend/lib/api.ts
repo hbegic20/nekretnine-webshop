@@ -56,3 +56,22 @@ export async function serverFetch<T>(path: string, init?: RequestInit): Promise<
 
   return (await response.json()) as T
 }
+
+/**
+ * Fetch from a Server Component *as the signed-in user*.
+ *
+ * Same reason as getCurrentUser: server-side `fetch` has no cookie jar, so the
+ * incoming request's cookies have to be copied onto the outgoing call by hand.
+ * Anything that renders private data — the seller dashboard, a draft listing —
+ * has to go through this rather than `serverFetch`, or the API will see an
+ * anonymous request and hide the very rows the page exists to show.
+ */
+export async function serverFetchAuthed<T>(path: string, init?: RequestInit): Promise<T> {
+  const { cookies } = await import('next/headers')
+  const cookieHeader = (await cookies()).toString()
+
+  return serverFetch<T>(path, {
+    ...init,
+    headers: { ...(init?.headers ?? {}), cookie: cookieHeader },
+  })
+}

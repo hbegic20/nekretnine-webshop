@@ -62,6 +62,19 @@ DRAFT ──submit──> PENDING ──approve──> PUBLISHED ──┬──
 Only PUBLISHED (and SOLD, when explicitly included) listings are ever returned
 by public endpoints. This is enforced in the API, not in the UI.
 
+**Editing a PUBLISHED listing** (decided 2026-08-20): changing the **price**
+keeps it live, because price cuts are the most common edit and should not wait
+for approval. Changing anything else returns it to PENDING, which closes the
+bait-and-switch route — get a clean listing approved, then rewrite it. The edit
+form warns before saving, and the API response says whether it happened.
+Admins are exempt; an admin editing a live listing *is* moderation.
+
+**Deleting** (decided 2026-08-20) is a soft delete. The row keeps its
+`deleted_at` stamp and vanishes from every view, but its `payments` rows — the
+record that this person paid us — and its inquiry history survive. A hard
+delete would cascade both away, and losing financial records to a misclick is
+not a trade worth making.
+
 ---
 
 ## 4. In scope for v1
@@ -87,7 +100,9 @@ in Phase 3's schema, but at minimum):
 - Status, timestamps, expiry
 
 Buyers and visitors get read-only views. Authorization is checked server-side
-on every write: a seller may only touch rows they own.
+on every write: a seller may only touch rows they own. A listing someone may
+not see returns **404, not 403** — a 403 would confirm that a listing with that
+id exists, which a stranger has no need to know.
 
 ### 4.3 Search and filters
 Filter by town, price range, property type, transaction type, number of

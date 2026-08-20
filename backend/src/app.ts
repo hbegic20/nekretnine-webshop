@@ -7,6 +7,7 @@ import { db } from './db/index.js'
 import { errorHandler, notFoundHandler } from './http/errors.js'
 import { loadUser } from './middleware/auth.js'
 import { authRouter } from './routes/auth.js'
+import { listingsRouter } from './routes/listings.js'
 
 export function createApp() {
   const app = express()
@@ -87,8 +88,8 @@ export function createApp() {
   app.use('/api', loadUser)
 
   app.use('/api/auth', authRouter)
-  // Further resources land here in 4.2 onward — one file per resource,
-  // as CLAUDE.md requires.
+  app.use('/api/listings', listingsRouter)
+  // Further resources land here — one file per resource, as CLAUDE.md requires.
 
   app.use(notFoundHandler)
   app.use(errorHandler)

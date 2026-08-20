@@ -32,9 +32,27 @@ function visible(...conditions: (SQL | undefined)[]): SQL | undefined {
   return and(isNull(listings.deletedAt), ...conditions)
 }
 
-/** What the public internet is allowed to see. */
-function publiclyVisible(...conditions: (SQL | undefined)[]): SQL | undefined {
+/**
+ * What the public may *open*: published, plus sold.
+ *
+ * A sold listing keeps working at its own URL — links to it are shared, and it
+ * is the only record this market has of what things actually went for.
+ */
+function publiclyViewable(...conditions: (SQL | undefined)[]): SQL | undefined {
   return visible(inArray(listings.status, [...PUBLIC_STATUSES]), ...conditions)
+}
+
+/**
+ * What the public *browses*, which is narrower (SPEC.md §3).
+ *
+ * Sold listings are excluded from search results unless asked for, because
+ * someone looking for a flat to buy does not want a page of ones they cannot
+ * have. Opening one directly still works — that is `publiclyViewable` above.
+ * Two different questions, so two different conditions.
+ */
+function publiclyListed(includeSold: boolean, ...conditions: (SQL | undefined)[]): SQL | undefined {
+  const statuses = includeSold ? [...PUBLIC_STATUSES] : (['PUBLISHED'] as const)
+  return visible(inArray(listings.status, [...statuses]), ...conditions)
 }
 
 /*
@@ -219,26 +237,50 @@ function filterConditions(filters: ListingFilters): (SQL | undefined)[] {
 function orderFor(filters: ListingFilters): SQL[] {
   const tiebreak = asc(listings.id)
 
+  /*
+   * When sold listings are included, they sort last whatever else is chosen.
+   * `status = 'SOLD'` is false (sorting before true) for everything still
+   * available, so ascending puts the available ones first — SPEC.md §3's
+   * "sorted last", expressed as a boolean rather than a second query.
+   */
+  const soldLast = filters.includeSold
+    ? [asc(sql`(${listings.status} = 'SOLD')`)]
+    : []
+
   switch (filters.sort) {
     case 'price_asc':
-      return [asc(listings.price), tiebreak]
+      return [...soldLast, asc(listings.price), tiebreak]
     case 'price_desc':
-      return [desc(listings.price), tiebreak]
+      return [...soldLast, desc(listings.price), tiebreak]
     case 'relevance':
       if (filters.q) {
         // ts_rank scores how well the row matches: more of the search terms,
         // occurring more often, scores higher.
         return [
+          ...soldLast,
           desc(sql`ts_rank(${listings.searchVector}, plainto_tsquery('simple', f_unaccent(${filters.q})))`),
           desc(listings.publishedAt),
           tiebreak,
         ]
       }
-      return [desc(listings.publishedAt), tiebreak]
+      return [...soldLast, desc(listings.publishedAt), tiebreak]
     case 'newest':
     default:
-      return [desc(listings.publishedAt), tiebreak]
+      return [...soldLast, desc(listings.publishedAt), tiebreak]
   }
+}
+
+/**
+ * Rows → summaries, fetching their cover images in one query.
+ *
+ * Exported so favorites can reuse it. It deliberately does *not* know about
+ * favorites itself: this module would then import that one, which imports this
+ * one, and the cycle would work today and break the moment either grows a
+ * top-level side effect. The flag is attached in the route layer instead.
+ */
+export async function summariesFor(rows: Listing[]): Promise<ListingSummary[]> {
+  const covers = await coverImagesFor(rows.map((r) => r.id))
+  return rows.map((row) => toSummary(row, covers.get(row.id) ?? null))
 }
 
 /** The public, filtered, sorted, paginated list. */
@@ -247,7 +289,7 @@ export async function listPublicListings(
 ): Promise<Paginated<ListingSummary>> {
   const page = Math.max(1, filters.page)
   const perPage = LISTINGS_PER_PAGE
-  const where = publiclyVisible(...filterConditions(filters))
+  const where = publiclyListed(filters.includeSold ?? false, ...filterConditions(filters))
 
   /*
    * The count and the page of rows are two queries, run together.
@@ -268,10 +310,8 @@ export async function listPublicListings(
     db.select({ count: sql<number>`count(*)::int` }).from(listings).where(where),
   ])
 
-  const covers = await coverImagesFor(rows.map((r) => r.id))
-
   return {
-    items: rows.map((row) => toSummary(row, covers.get(row.id) ?? null)),
+    items: await summariesFor(rows),
     total: counted[0]?.count ?? 0,
     page,
     perPage,
@@ -302,7 +342,8 @@ export async function listMapPins(filters: ListingFilters): Promise<MapPin[]> {
     })
     .from(listings)
     .where(
-      publiclyVisible(
+      publiclyListed(
+        filters.includeSold ?? false,
         sql`${listings.lat} is not null`,
         sql`${listings.lng} is not null`,
         ...filterConditions(filters),
@@ -326,8 +367,7 @@ export async function listOwnListings(userId: string): Promise<ListingSummary[]>
     .where(visible(eq(listings.ownerId, userId)))
     .orderBy(desc(listings.updatedAt))
 
-  const covers = await coverImagesFor(rows.map((r) => r.id))
-  return rows.map((row) => toSummary(row, covers.get(row.id) ?? null))
+  return summariesFor(rows)
 }
 
 export async function getListingRow(id: string): Promise<Listing> {

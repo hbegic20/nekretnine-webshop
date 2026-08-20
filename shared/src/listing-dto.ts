@@ -38,6 +38,25 @@ export interface ListingSummary {
   coverImage: ListingImage | null
   publishedAt: string | null
   createdAt: string
+  /**
+   * Whether the *current viewer* has saved this listing.
+   *
+   * Optional, and absent rather than `false` for anonymous visitors. That
+   * distinction is deliberate: `false` would mean "you have not saved this",
+   * which is a different claim from "there is nobody to have saved it". The UI
+   * uses the absence to decide whether to render a save button at all.
+   */
+  isFavorite?: boolean
+}
+
+/** A saved listing, plus whether it is still on the market. */
+export interface FavoriteListing extends ListingSummary {
+  /**
+   * SPEC.md §4.6: a saved listing that later expires stays in the list,
+   * marked as no longer available. Removing it silently would be worse —
+   * someone would assume they never saved it.
+   */
+  available: boolean
 }
 
 export interface ListingDetail extends ListingSummary {

@@ -22,6 +22,12 @@ export async function Header() {
           {user ? (
             <>
               <Link
+                href="/sacuvano"
+                className="text-sm underline underline-offset-4 opacity-70 hover:opacity-100"
+              >
+                Sačuvano
+              </Link>
+              <Link
                 href="/moji-oglasi"
                 className="text-sm underline underline-offset-4 opacity-70 hover:opacity-100"
               >

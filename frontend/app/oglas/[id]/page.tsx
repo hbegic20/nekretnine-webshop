@@ -5,6 +5,7 @@ import { formatPrice, townLabel } from 'shared'
 import { fetchListing } from '@/lib/listings'
 import { StatusBadge } from '@/components/StatusBadge'
 import { Gallery } from '@/components/Gallery'
+import { FavoriteButton } from '@/components/FavoriteButton'
 import { InquiryForm } from '@/components/InquiryForm'
 import { ListingMap } from '@/components/map/ListingMap'
 
@@ -73,7 +74,12 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
 
       <div className="mt-6 flex items-start justify-between gap-4">
         <h1 className="text-2xl font-semibold tracking-tight">{listing.title}</h1>
-        {listing.status !== 'PUBLISHED' && <StatusBadge status={listing.status} />}
+        <div className="flex shrink-0 items-center gap-2">
+          {listing.status !== 'PUBLISHED' && <StatusBadge status={listing.status} />}
+          {listing.status === 'PUBLISHED' && (
+            <FavoriteButton listingId={listing.id} isFavorite={listing.isFavorite} />
+          )}
+        </div>
       </div>
 
       <p className="mt-3 text-2xl font-semibold">

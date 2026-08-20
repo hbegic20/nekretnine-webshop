@@ -142,6 +142,17 @@ export function SearchFilters({ filters }: { filters: ListingFilters }) {
                placeholder="Površina do (m²)" aria-label="Površina do" className={fieldClass} />
       </div>
 
+      <label className="flex items-center gap-2 text-sm">
+        <input
+          type="checkbox"
+          name="includeSold"
+          value="1"
+          defaultChecked={filters.includeSold ?? false}
+          className="h-4 w-4"
+        />
+        Prikaži i prodane oglase
+      </label>
+
       {activeCount > 0 && (
         <p className="text-sm">
           <a href="/" className="underline underline-offset-4 opacity-70 hover:opacity-100">

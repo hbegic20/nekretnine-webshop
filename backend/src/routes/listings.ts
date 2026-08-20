@@ -20,6 +20,7 @@ import {
   updateListing,
 } from '../services/listings.js'
 import { recordPayment } from '../services/payments.js'
+import { withFavoriteFlags } from '../services/favorites.js'
 import { imagesRouter } from './images.js'
 import { inquiriesRouter } from './inquiries.js'
 import { badRequest } from '../http/errors.js'
@@ -139,7 +140,17 @@ const updateSchema = listingFields.partial().superRefine(checkCoordinates)
  * drops anything it does not recognise, so nothing unvalidated reaches SQL.
  */
 listingsRouter.get('/', async (req, res) => {
-  res.json(await listPublicListings(parseListingFilters(req.query)))
+  const page = await listPublicListings(parseListingFilters(req.query))
+
+  // `loadUser` has already run, so a signed-in visitor gets their saved state
+  // in the same response — no second round trip per card. Anonymous visitors
+  // get no flag at all, which is what tells the UI to hide the save button.
+  if (!req.user) {
+    res.json(page)
+    return
+  }
+
+  res.json({ ...page, items: await withFavoriteFlags(req.user.id, page.items) })
 })
 
 /**
@@ -165,7 +176,15 @@ listingsRouter.get('/mine', requireAuth, async (req, res) => {
 /** GET /api/listings/:id — public when published, owner/admin otherwise. */
 listingsRouter.get('/:id', async (req, res) => {
   const id = z.uuid().parse(req.params.id)
-  res.json({ listing: await getListingDetail(id, req.user) })
+  const listing = await getListingDetail(id, req.user)
+
+  if (!req.user) {
+    res.json({ listing })
+    return
+  }
+
+  const [withFlag] = await withFavoriteFlags(req.user.id, [listing])
+  res.json({ listing: withFlag })
 })
 
 /*

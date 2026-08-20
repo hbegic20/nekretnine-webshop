@@ -24,6 +24,18 @@ export interface ListingFilters {
   bathsMin?: number
   sizeMin?: number
   sizeMax?: number
+  /**
+   * Include listings already marked sold (SPEC.md §3).
+   *
+   * Off by default: someone searching for a flat to buy does not want a page
+   * of ones they cannot have. But sold listings stay reachable at their own
+   * URL, and are worth being able to see deliberately — they are the only
+   * price history this market has.
+   *
+   * Only ever present when true, never `includeSold: false`, so that
+   * `countActiveFilters` does not count the default as a filter.
+   */
+  includeSold?: true
   sort: ListingSort
   page: number
 }
@@ -58,6 +70,12 @@ function positiveInt(value: unknown): number | undefined {
   // Number('') is 0 and Number('abc') is NaN; neither is a filter.
   if (!Number.isFinite(parsed) || parsed < 0) return undefined
   return Math.floor(parsed)
+}
+
+/** Accepts the shapes a checkbox and a hand-written URL actually produce. */
+function boolean(value: unknown): true | undefined {
+  const text = one(value)?.toLowerCase()
+  return text === '1' || text === 'true' || text === 'on' || text === 'yes' ? true : undefined
 }
 
 function oneOf<T extends string>(value: unknown, allowed: readonly T[]): T | undefined {
@@ -110,6 +128,7 @@ export function parseListingFilters(query: RawQuery): ListingFilters {
     ...(positiveInt(query.bathsMin) !== undefined ? { bathsMin: positiveInt(query.bathsMin)! } : {}),
     ...(sizeMin !== undefined ? { sizeMin } : {}),
     ...(sizeMax !== undefined ? { sizeMax } : {}),
+    ...(boolean(query.includeSold) ? { includeSold: true as const } : {}),
     sort,
     page: Math.max(1, positiveInt(query.page) ?? 1),
   }

@@ -56,8 +56,10 @@ DRAFT ──submit──> PENDING ──approve──> PUBLISHED ──┬──
   `expires_at`.
 - **EXPIRED** — past `expires_at`. Removed from public search automatically.
   The seller can request renewal (which returns it to PENDING).
-- **SOLD** — seller marked it sold. Kept visible, clearly badged, but sorted
-  last and excluded from default search results.
+- **SOLD** — seller marked it sold. Excluded from browse results by default
+  and included via `?includeSold=1`, where it sorts last whatever else is
+  chosen. It still opens at its own URL: links to it get shared, and sold
+  listings are the only price history this market has.
 
 Only PUBLISHED (and SOLD, when explicitly included) listings are ever returned
 by public endpoints. This is enforced in the API, not in the UI.
@@ -129,8 +131,13 @@ contact details, and an inquiry form. Server-rendered for SEO.
 
 ### 4.6 Favorites
 A logged-in buyer can save and unsave a listing, and see their saved list on
-one page. A favorited listing that later expires stays in the list, marked as
-no longer available.
+one page. A favorited listing that later expires or sells stays in the list,
+in a separate "no longer available" section — removing it silently would leave
+someone certain they had saved a flat that has since vanished.
+
+Save is `PUT /api/favorites/:id`, not POST, because the operation is
+idempotent: a double click, a retry on a flaky connection, or a duplicate
+request should all end with the listing saved and no error.
 
 ### 4.7 Inquiries
 A form on the detail page (name, email, phone, message) that emails the

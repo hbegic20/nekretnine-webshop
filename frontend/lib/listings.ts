@@ -12,11 +12,23 @@ import { ApiError, serverFetch, serverFetchAuthed } from './api'
  * The filters are serialised back into a query string by the same /shared
  * function the URL is built with, so the request the API receives is exactly
  * the URL the user can see and share.
+ *
+ * Uses `serverFetchAuthed`, not `serverFetch`, and the difference is not
+ * cosmetic. The listing data itself is public, but the API also stamps each
+ * item with `isFavorite` — and it can only do that if it knows who is asking.
+ * Fetching anonymously returned correct listings with the save state silently
+ * missing, so every card rendered a "sign in to save" link to someone who was
+ * already signed in.
+ *
+ * The general trap: a server-side fetch that "works" can still be wrong,
+ * because it succeeded as the wrong user.
  */
 export async function fetchPublicListings(
   filters: ListingFilters,
 ): Promise<Paginated<ListingSummary>> {
-  return serverFetch<Paginated<ListingSummary>>(`/api/listings${listingFiltersToQuery(filters)}`)
+  return serverFetchAuthed<Paginated<ListingSummary>>(
+    `/api/listings${listingFiltersToQuery(filters)}`,
+  )
 }
 
 /**

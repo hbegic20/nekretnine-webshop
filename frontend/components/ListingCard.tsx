@@ -1,6 +1,7 @@
 import Link from 'next/link'
 import { formatPrice, townLabel, type ListingSummary } from 'shared'
 import { StatusBadge } from './StatusBadge'
+import { FavoriteButton } from './FavoriteButton'
 
 const PROPERTY_LABELS: Record<string, string> = {
   apartment: 'Stan',
@@ -24,6 +25,20 @@ export function ListingCard({
   ].filter(Boolean)
 
   return (
+    /*
+     * The card is a link and the heart is a button. Nesting a <button> inside
+     * an <a> is invalid HTML and browsers handle it inconsistently — the click
+     * usually navigates instead of toggling. So the heart sits as a sibling,
+     * positioned over the card.
+     */
+    <div className="relative">
+      {listing.status === 'PUBLISHED' && (
+        <FavoriteButton
+          listingId={listing.id}
+          isFavorite={listing.isFavorite}
+          className="absolute right-2 top-2 z-10 bg-background/90 backdrop-blur"
+        />
+      )}
     <Link
       href={`/oglas/${listing.id}`}
       className="group block overflow-hidden rounded-lg border border-black/10 dark:border-white/10 transition
@@ -72,5 +87,6 @@ export function ListingCard({
       {facts.length > 0 && <p className="mt-1 text-sm opacity-60">{facts.join(' · ')}</p>}
       </div>
     </Link>
+    </div>
   )
 }

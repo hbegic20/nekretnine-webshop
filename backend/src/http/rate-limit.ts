@@ -40,3 +40,30 @@ export const registerLimiter = rateLimit({
   skip: disabledInTests,
   message: { error: { code: 'rate_limited', message: 'Too many accounts created. Try again later.' } },
 })
+
+/**
+ * The inquiry form is the one endpoint an anonymous stranger can use to make
+ * us send email. Without a limit it is an open spam relay pointed at sellers.
+ */
+export const inquiryLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 10,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  skip: disabledInTests,
+  message: { error: { code: 'rate_limited', message: 'Previše upita. Pokušajte kasnije.' } },
+})
+
+/**
+ * Uploads are the most expensive thing an authenticated user can ask for —
+ * each one decodes and re-encodes an image, which is real CPU. The limit is
+ * generous enough for a seller adding a full gallery in one sitting.
+ */
+export const uploadLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 60,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  skip: disabledInTests,
+  message: { error: { code: 'rate_limited', message: 'Previše slanja. Pokušajte za koji minut.' } },
+})

@@ -13,8 +13,8 @@ export default async function NewListingPage() {
     <main className="mx-auto w-full max-w-2xl px-6 py-12">
       <h1 className="text-2xl font-semibold tracking-tight">Novi oglas</h1>
       <p className="mt-1 mb-8 text-sm opacity-70">
-        Oglas se prvo sprema kao nacrt. Kada ga pošaljete na odobrenje,
-        administrator ga pregleda prije objave.
+        Oglas se prvo sprema kao nacrt. Slike dodajete nakon spremanja, a kada
+        ga pošaljete na odobrenje, administrator ga pregleda prije objave.
       </p>
 
       <ListingForm />

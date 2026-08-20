@@ -26,9 +26,29 @@ export function ListingCard({
   return (
     <Link
       href={`/oglas/${listing.id}`}
-      className="group block rounded-lg border border-black/10 dark:border-white/10 p-4 transition
+      className="group block overflow-hidden rounded-lg border border-black/10 dark:border-white/10 transition
                  hover:border-black/30 dark:hover:border-white/30"
     >
+      {listing.coverImage ? (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img
+          src={listing.coverImage.thumbUrl}
+          alt=""
+          width={listing.coverImage.width}
+          height={listing.coverImage.height}
+          loading="lazy"
+          /* Fixed height plus object-cover keeps every card the same size
+             whatever shape the photo is — a grid of differently sized cards
+             reads as broken. */
+          className="h-40 w-full object-cover"
+        />
+      ) : (
+        <div className="flex h-40 w-full items-center justify-center bg-black/5 dark:bg-white/5">
+          <span className="text-xs opacity-40">Bez slike</span>
+        </div>
+      )}
+
+      <div className="p-4">
       <div className="flex items-start justify-between gap-3">
         <h3 className="font-medium leading-snug group-hover:underline underline-offset-4">
           {listing.title}
@@ -50,6 +70,7 @@ export function ListingCard({
       </p>
 
       {facts.length > 0 && <p className="mt-1 text-sm opacity-60">{facts.join(' · ')}</p>}
+      </div>
     </Link>
   )
 }

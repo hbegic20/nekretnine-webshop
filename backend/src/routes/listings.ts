@@ -20,9 +20,19 @@ import {
   updateListing,
 } from '../services/listings.js'
 import { recordPayment } from '../services/payments.js'
+import { imagesRouter } from './images.js'
+import { inquiriesRouter } from './inquiries.js'
 import { badRequest } from '../http/errors.js'
 
 export const listingsRouter = Router()
+
+/*
+ * Sub-resources of a listing, mounted here so their URLs read the way the
+ * data nests: /api/listings/:id/images, /api/listings/:id/inquiries.
+ * Each still lives in its own file, as CLAUDE.md requires.
+ */
+listingsRouter.use('/:id/images', imagesRouter)
+listingsRouter.use('/:id/inquiries', inquiriesRouter)
 
 const currentYear = new Date().getFullYear()
 

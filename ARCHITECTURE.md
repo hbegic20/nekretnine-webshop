@@ -424,15 +424,55 @@ when you hit Phase 6:
 
 ### 6.3 Upload flow
 
-Browser → API → storage. The API checks you own the listing, validates MIME
-type and size, resizes with `sharp` into a thumbnail and a gallery variant,
-writes both through the adapter, and inserts an `images` row.
+Browser → API → storage, **one file per request, raw bytes as the body**.
+
+No `multipart/form-data`, and therefore no `multer`. Express does not parse
+multipart, and before adding a dependency for it the question is what multipart
+buys us: several files plus text fields in one request. We need neither. There
+are no text fields, and one request per file is better behaviour anyway — each
+photo gets its own error, and a failure on the fourth image does not discard
+the first three. `fetch(url, { method: 'POST', body: file })` posts a File
+directly, so the server side is `express.raw` and a Content-Type check. If
+batching ever becomes worth it, multer is the right tool and that is the moment
+to ask.
+
+The pipeline, in order, with the reason for each step:
+
+1. **Size and type refused before decoding.** A "decompression bomb" is a small
+   file that expands into gigabytes of pixels; the cheapest defence is not
+   decoding anything large. `limitInputPixels` is the second line.
+2. **sharp decodes the bytes.** The Content-Type header is a claim, not a fact —
+   anyone can post a zip labelled `image/jpeg`. Decoding is what establishes
+   this is really an image, so a failure is a 400, not a 500.
+3. **`.rotate()` with no argument**, which applies the EXIF orientation flag.
+   Phone cameras store the sensor image unrotated and record "actually
+   portrait" in EXIF. Skip this and every vertical photo appears on its side —
+   the most common image bug in web apps.
+4. **Metadata dropped on output**, which sharp does by default. Phone EXIF
+   routinely carries the GPS coordinates where the photo was taken. Publishing
+   those next to a property listing hands out the seller's exact location, and
+   often their home address, with nobody intending it. This is a privacy
+   default worth being deliberate about rather than inheriting by luck.
+5. **Two WebP variants** — 1600px for the gallery, 480px for cards — written
+   through the storage adapter, then one `images` row. Output dimensions come
+   from the encoder, not the input: `fit: 'inside'` preserves aspect ratio and
+   rotation may have swapped the axes, so the input's numbers would give the
+   page a wrong aspect ratio and make it jump as images load.
+
+**On delete, the row goes first and the files after**, with file failures
+logged rather than thrown. Fail that way round and the worst case is orphaned
+bytes nobody can reach; the other way round, a live listing shows a broken
+image. Given the choice, waste the bytes.
+
+Adding or removing a photo **returns a published listing to PENDING**, because
+the Phase 4.2 rule exempts only `price` and swapping the pictures on an
+approved listing is exactly the bait-and-switch that rule exists to stop.
 
 The more scalable pattern is a **presigned URL**, where the browser uploads
 straight to the bucket and your Node process never touches the bytes. Right at
-volume, wrong now — it's more moving parts, it makes server-side validation and
-resizing awkward, and it doesn't work with the disk driver at all. Revisit if
-uploads visibly tie up the API.
+volume, wrong now — more moving parts, awkward server-side validation and
+resizing, and it does not work with the disk driver at all. Revisit if uploads
+visibly tie up the API.
 
 ### 6.4 Email, same shape
 

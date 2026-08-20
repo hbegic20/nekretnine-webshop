@@ -4,6 +4,9 @@ import { notFound } from 'next/navigation'
 import { formatPrice, townLabel } from 'shared'
 import { fetchListing } from '@/lib/listings'
 import { StatusBadge } from '@/components/StatusBadge'
+import { Gallery } from '@/components/Gallery'
+import { InquiryForm } from '@/components/InquiryForm'
+import { ListingMap } from '@/components/map/ListingMap'
 
 const PROPERTY_LABELS: Record<string, string> = {
   apartment: 'Stan',
@@ -86,7 +89,8 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
         </p>
       )}
 
-      {/* The gallery, the map and the inquiry form arrive in Phase 4.5. */}
+      <Gallery images={listing.images} title={listing.title} />
+
       {listing.description && (
         <p className="mt-6 whitespace-pre-line leading-relaxed">{listing.description}</p>
       )}
@@ -100,6 +104,30 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
         ))}
       </dl>
 
+      {listing.lat !== null && listing.lng !== null && (
+        <section className="mt-10">
+          <h2 className="text-sm font-medium">Lokacija</h2>
+          <div className="mt-3 overflow-hidden rounded-lg border border-black/10 dark:border-white/10">
+            {/* One pin, centred on the listing's own town. */}
+            <ListingMap
+              pins={[
+                {
+                  id: listing.id,
+                  lat: listing.lat,
+                  lng: listing.lng,
+                  price: listing.price,
+                  title: listing.title,
+                  transactionType: listing.transactionType,
+                  propertyType: listing.propertyType,
+                },
+              ]}
+              town={listing.town}
+              className="h-80 w-full"
+            />
+          </div>
+        </section>
+      )}
+
       <section className="mt-10 rounded-lg border border-black/10 dark:border-white/10 p-4">
         <h2 className="text-sm font-medium">Kontakt</h2>
         <p className="mt-2 text-sm">{listing.contactName}</p>
@@ -112,6 +140,18 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
           <p className="mt-2 text-sm opacity-60">Adresa (vidljiva samo vama): {listing.address}</p>
         )}
       </section>
+
+      {/* Only a live listing can be enquired about — the API enforces the same
+          rule, so this is presentation, not permission. */}
+      {(listing.status === 'PUBLISHED' || listing.status === 'SOLD') && (
+        <section className="mt-8 rounded-lg border border-black/10 dark:border-white/10 p-4">
+          <h2 className="text-sm font-medium">Pošaljite upit</h2>
+          <p className="mt-1 mb-4 text-sm opacity-70">
+            Poruka ide direktno prodavcu. Vaš email vidi samo on.
+          </p>
+          <InquiryForm listingId={listing.id} />
+        </section>
+      )}
     </main>
   )
 }

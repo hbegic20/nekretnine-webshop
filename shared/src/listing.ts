@@ -44,7 +44,13 @@ export type PropertyType = (typeof PROPERTY_TYPES)[number]
 export const TRANSACTION_TYPES = ['sale', 'rent'] as const
 export type TransactionType = (typeof TRANSACTION_TYPES)[number]
 
-export const LISTING_SORTS = ['newest', 'price_asc', 'price_desc'] as const
+/**
+ * `relevance` only means anything when there is a keyword to be relevant to,
+ * so it is the default when someone searches and unavailable when they have
+ * not. Sorting an unfiltered list by relevance would be ordering by a score
+ * that is zero for every row.
+ */
+export const LISTING_SORTS = ['relevance', 'newest', 'price_asc', 'price_desc'] as const
 export type ListingSort = (typeof LISTING_SORTS)[number]
 
 /** Default number of days a listing stays published. Admin can override per listing. */

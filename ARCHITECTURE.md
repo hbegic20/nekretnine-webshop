@@ -477,15 +477,41 @@ query filters on it, so it belongs at the front of the index.
 
 ### 7.2 Keyword search, and a Bosnian-specific wrinkle
 
-A generated `tsvector` column over title and description, with a GIN index.
+**Built in migration 0002.** A `GENERATED ALWAYS AS ... STORED` tsvector column
+over title, description and neighbourhood, with a GIN index. Generated means
+Postgres recomputes it on every write, so it cannot drift from the text it
+summarises — unlike a column maintained by application code, which is correct
+until the first script or migration that touches `title` directly.
 
-The wrinkle: Postgres has no Bosnian/Croatian/Serbian text search
-configuration, so stemming isn't available — we use the `simple` config, which
-just lowercases and splits on whitespace. More importantly, **someone typing
-"stan u Gornjem Vakufu" without diacritics must still match "Gornji
-Vakuf"**. The `unaccent` extension strips diacritics on both sides so `c`
-matches `ć` and `s` matches `š`. Without it, search quietly fails for every
-user with an English keyboard layout — which is most of them on mobile.
+Two wrinkles, both specific to this language:
+
+**No stemming.** Postgres ships no Bosnian/Croatian/Serbian dictionary, so the
+config is `'simple'` — lowercase and split on whitespace. English stemming on
+Bosnian text is worse than none.
+
+**Diacritics.** Someone typing "kuca" must match "kuća", because the phone
+keyboards most buyers use do not produce č, ć, š, ž or đ by default. Without
+this, search appears to work for whoever built it and silently fails for
+everyone else. The `unaccent` extension handles it — but Postgres refuses to
+index `unaccent()` directly, because the extension's function is only STABLE:
+it reads a dictionary that could in principle be swapped, which would silently
+invalidate the index. The accepted fix is a wrapper declared IMMUTABLE around
+the two-argument form, which names the dictionary explicitly:
+
+```sql
+CREATE FUNCTION f_unaccent(text) RETURNS text
+  LANGUAGE sql IMMUTABLE PARALLEL SAFE STRICT
+AS $$ SELECT public.unaccent('public.unaccent', $1) $$;
+```
+
+That is a promise not to change the dictionary underneath it. If anyone ever
+does, the index must be rebuilt. It is applied to both the indexed text and
+the search term — stripping accents on only one side matches nothing.
+
+Since drizzle-kit cannot know the function must exist first, migration 0002 was
+**hand-edited after generation** to create the extension and the function above
+the generated `ALTER TABLE`. That is the workflow `generate` and `migrate`
+being separate steps exists to allow.
 
 `pg_trgm` for typo-tolerance is a later addition if searches come back empty
 too often.

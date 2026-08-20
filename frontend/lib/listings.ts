@@ -1,8 +1,21 @@
-import type { ListingDetail, ListingSummary, Paginated } from 'shared'
+import {
+  listingFiltersToQuery,
+  type ListingDetail,
+  type ListingFilters,
+  type ListingSummary,
+  type Paginated,
+} from 'shared'
 import { ApiError, serverFetch, serverFetchAuthed } from './api'
 
-export async function fetchPublicListings(page = 1): Promise<Paginated<ListingSummary>> {
-  return serverFetch<Paginated<ListingSummary>>(`/api/listings?page=${page}`)
+/**
+ * The filters are serialised back into a query string by the same /shared
+ * function the URL is built with, so the request the API receives is exactly
+ * the URL the user can see and share.
+ */
+export async function fetchPublicListings(
+  filters: ListingFilters,
+): Promise<Paginated<ListingSummary>> {
+  return serverFetch<Paginated<ListingSummary>>(`/api/listings${listingFiltersToQuery(filters)}`)
 }
 
 /**

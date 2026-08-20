@@ -1,9 +1,10 @@
-import { and, asc, desc, eq, inArray, isNull, sql, type SQL } from 'drizzle-orm'
+import { and, asc, desc, eq, gte, inArray, isNull, lte, sql, type SQL } from 'drizzle-orm'
 import {
   ALLOWED_TRANSITIONS,
   DEFAULT_EXPIRY_DAYS,
   LISTINGS_PER_PAGE,
   PUBLIC_STATUSES,
+  type ListingFilters,
   type ListingDetail,
   type ListingImage,
   type ListingInput,
@@ -162,23 +163,104 @@ async function coverImagesFor(listingIds: string[]): Promise<Map<string, Image>>
   return byListing
 }
 
-export interface ListQuery {
-  page?: number
-  perPage?: number
+/**
+ * Turns a keyword into a Postgres text-search query.
+ *
+ * `plainto_tsquery` is the forgiving one: it takes whatever a person typed,
+ * discards punctuation and ANDs the words together. `to_tsquery` would demand
+ * operator syntax and throw a syntax error on an apostrophe — a search box
+ * must never 500 because someone typed `don't`.
+ *
+ * f_unaccent is applied to the search term as well as to the indexed text.
+ * Stripping diacritics on only one side matches nothing.
+ */
+function keywordCondition(q: string): SQL {
+  return sql`${listings.searchVector} @@ plainto_tsquery('simple', f_unaccent(${q}))`
 }
 
-/** The public list. Filters and sorting arrive in Phase 4.3. */
-export async function listPublicListings(query: ListQuery): Promise<Paginated<ListingSummary>> {
-  const page = Math.max(1, query.page ?? 1)
-  const perPage = Math.min(60, Math.max(1, query.perPage ?? LISTINGS_PER_PAGE))
-  const where = publiclyVisible()
+/**
+ * Every filter is an optional AND.
+ *
+ * Note what happens to rows with a NULL in a filtered column: `bedrooms >= 2`
+ * is NULL for a listing that never recorded its bedroom count, and NULL is not
+ * true, so it drops out. That is the right behaviour — someone who asked for
+ * two bedrooms should not be shown a listing that might have none — but it is
+ * worth knowing, because it means incomplete listings quietly become
+ * invisible as soon as a buyer filters.
+ */
+function filterConditions(filters: ListingFilters): (SQL | undefined)[] {
+  const conditions: (SQL | undefined)[] = []
 
+  if (filters.q) conditions.push(keywordCondition(filters.q))
+  if (filters.town) conditions.push(eq(listings.town, filters.town))
+  if (filters.propertyType) conditions.push(eq(listings.propertyType, filters.propertyType))
+  if (filters.transactionType) conditions.push(eq(listings.transactionType, filters.transactionType))
+  if (filters.priceMin !== undefined) conditions.push(gte(listings.price, filters.priceMin))
+  if (filters.priceMax !== undefined) conditions.push(lte(listings.price, filters.priceMax))
+  if (filters.bedsMin !== undefined) conditions.push(gte(listings.bedrooms, filters.bedsMin))
+  if (filters.bathsMin !== undefined) conditions.push(gte(listings.bathrooms, filters.bathsMin))
+  if (filters.sizeMin !== undefined) conditions.push(gte(listings.sizeM2, filters.sizeMin))
+  if (filters.sizeMax !== undefined) conditions.push(lte(listings.sizeM2, filters.sizeMax))
+
+  return conditions
+}
+
+/**
+ * Sort order, always ending in a unique tiebreaker.
+ *
+ * Without `id` at the end, two listings at the same price have no defined
+ * order between them, and Postgres is free to return them differently on each
+ * query. Across an OFFSET-paginated result that shows up as a listing
+ * appearing on both page 1 and page 2, or on neither — a genuinely confusing
+ * bug that only appears once there are enough rows to paginate.
+ */
+function orderFor(filters: ListingFilters): SQL[] {
+  const tiebreak = asc(listings.id)
+
+  switch (filters.sort) {
+    case 'price_asc':
+      return [asc(listings.price), tiebreak]
+    case 'price_desc':
+      return [desc(listings.price), tiebreak]
+    case 'relevance':
+      if (filters.q) {
+        // ts_rank scores how well the row matches: more of the search terms,
+        // occurring more often, scores higher.
+        return [
+          desc(sql`ts_rank(${listings.searchVector}, plainto_tsquery('simple', f_unaccent(${filters.q})))`),
+          desc(listings.publishedAt),
+          tiebreak,
+        ]
+      }
+      return [desc(listings.publishedAt), tiebreak]
+    case 'newest':
+    default:
+      return [desc(listings.publishedAt), tiebreak]
+  }
+}
+
+/** The public, filtered, sorted, paginated list. */
+export async function listPublicListings(
+  filters: ListingFilters,
+): Promise<Paginated<ListingSummary>> {
+  const page = Math.max(1, filters.page)
+  const perPage = LISTINGS_PER_PAGE
+  const where = publiclyVisible(...filterConditions(filters))
+
+  /*
+   * The count and the page of rows are two queries, run together.
+   *
+   * They have to be separate — a windowed `count(*) OVER ()` would work but
+   * ties the total to the page, and Postgres plans the two shapes very
+   * differently. Running them concurrently costs one round trip rather than
+   * two, since neither depends on the other.
+   */
   const [rows, counted] = await Promise.all([
     db
       .select()
       .from(listings)
       .where(where)
-      .orderBy(desc(listings.publishedAt))
+      .orderBy(...orderFor(filters))
       .limit(perPage)
       .offset((page - 1) * perPage),
     db.select({ count: sql<number>`count(*)::int` }).from(listings).where(where),

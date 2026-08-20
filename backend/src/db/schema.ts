@@ -1,5 +1,6 @@
 import { sql, relations } from 'drizzle-orm'
 import {
+  customType,
   pgTable,
   pgEnum,
   uuid,
@@ -31,6 +32,18 @@ import {
  * rejects a bad value. Adding a value later is a migration — mild friction,
  * which is the point: it keeps typos and one-off variants out of the data.
  */
+/**
+ * Postgres has a `tsvector` type for full-text search; Drizzle does not ship a
+ * helper for it, so we declare one. `customType` is the escape hatch for any
+ * column type the ORM does not model — it tells Drizzle what to emit in DDL
+ * and otherwise stays out of the way.
+ */
+const tsvector = customType<{ data: string; driverData: string }>({
+  dataType() {
+    return 'tsvector'
+  },
+})
+
 export const listingStatusEnum = pgEnum('listing_status', LISTING_STATUSES)
 export const propertyTypeEnum = pgEnum('property_type', PROPERTY_TYPES)
 export const transactionTypeEnum = pgEnum('transaction_type', TRANSACTION_TYPES)
@@ -152,6 +165,34 @@ export const listings = pgTable(
     rejectionReason: text('rejection_reason'),
 
     /**
+     * The full-text search index, maintained by Postgres itself.
+     *
+     * A GENERATED column is recomputed on every insert and update, so it can
+     * never fall out of sync with the text it summarises. The alternative —
+     * updating it from application code — works right up until someone writes
+     * a migration or a script that touches `title` directly.
+     *
+     * Two details that are easy to get wrong:
+     *
+     *  - the config is `'simple'`, not `'english'`. Postgres has no
+     *    Bosnian/Croatian/Serbian dictionary, and English stemming on Bosnian
+     *    text does more harm than nothing at all.
+     *  - `f_unaccent` is our own IMMUTABLE wrapper around the `unaccent`
+     *    extension. Postgres refuses to build a generated column or an index
+     *    on `unaccent()` directly, because the extension's function is only
+     *    STABLE — it depends on a dictionary that could in principle be
+     *    changed. The wrapper promises it will not be. Without unaccent,
+     *    searching "Gornji Vakuf" would not match "Gornji Vakuf" typed on an
+     *    English keyboard, which is most phones here.
+     *
+     * Created in migration 0002, which had to be hand-edited — see the comment
+     * at the top of that file.
+     */
+    searchVector: tsvector('search_vector').generatedAlwaysAs(
+      sql`to_tsvector('simple', f_unaccent(coalesce(title, '') || ' ' || coalesce(description, '') || ' ' || coalesce(neighbourhood, '')))`,
+    ),
+
+    /**
      * Soft delete. A listing a seller "deletes" keeps its row and disappears
      * from every view, because hard-deleting it would cascade away its
      * `payments` rows — the record that this person paid us — and its
@@ -186,6 +227,13 @@ export const listings = pgTable(
     index('listings_status_lat_lng_idx').on(t.status, t.lat, t.lng),
     // The scheduled expiry job scans for published listings past their date.
     index('listings_expires_at_idx').on(t.expiresAt),
+    /*
+     * GIN, not the default btree. A btree index answers "is this column equal
+     * to X"; a tsvector holds many words per row and the question is "does it
+     * contain X", which is what an inverted index is for. GIN is what makes
+     * full-text search over the whole table fast.
+     */
+    index('listings_search_vector_idx').using('gin', t.searchVector),
   ],
 )
 

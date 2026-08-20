@@ -5,6 +5,7 @@ import {
   TOWN_SLUGS,
   TRANSACTION_TYPES,
   isWithinRegion,
+  parseListingFilters,
   type ListingInput,
 } from 'shared'
 import { currentUser, requireAdmin, requireAuth } from '../middleware/auth.js'
@@ -110,21 +111,24 @@ const createSchema = listingFields
 
 const updateSchema = listingFields.partial().superRefine(checkCoordinates)
 
-const listQuerySchema = z.object({
-  page: z.coerce.number().int().min(1).default(1),
-  perPage: z.coerce.number().int().min(1).max(60).default(24),
-})
-
 /*
  * ---------------------------------------------------------------------------
  * Public reads
  * ---------------------------------------------------------------------------
  */
 
-/** GET /api/listings — published listings, newest first. Filters land in 4.3. */
+/**
+ * GET /api/listings — published listings, filtered and sorted.
+ *
+ * Parsed by `parseListingFilters` from /shared, the same function the search
+ * page uses to read the URL. There is deliberately no zod schema here: this
+ * endpoint must never reject a request. A search URL gets hand-edited, shared
+ * in chat apps and mangled by link previewers, so `?town=atlantis` should
+ * quietly return unfiltered results rather than a validation error. The parser
+ * drops anything it does not recognise, so nothing unvalidated reaches SQL.
+ */
 listingsRouter.get('/', async (req, res) => {
-  const query = listQuerySchema.parse(req.query)
-  res.json(await listPublicListings(query))
+  res.json(await listPublicListings(parseListingFilters(req.query)))
 })
 
 /**

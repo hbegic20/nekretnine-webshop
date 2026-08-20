@@ -1,0 +1,34 @@
+# Local development services.
+#
+# Phase 3 runs only Postgres here — the frontend and backend still run on your
+# machine with `npm run dev:frontend` / `npm run dev:backend`, which gives much
+# faster reloads while building features. Containers for both arrive in Phase 5,
+# when the goal becomes "the whole stack comes up with one command".
+
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: nekretnine-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: nekretnine
+      POSTGRES_PASSWORD: nekretnine
+      POSTGRES_DB: nekretnine
+    ports:
+      # Exposed on the host so the API (running outside Docker) can reach it,
+      # and so you can connect a GUI client if you want one.
+      - '5432:5432'
+    volumes:
+      # A named volume, so `docker compose down` keeps your data.
+      # `docker compose down -v` is what actually wipes it.
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      # Other services can wait for this instead of racing a database that has
+      # accepted a TCP connection but is not ready to answer queries yet.
+      test: ['CMD-SHELL', 'pg_isready -U nekretnine -d nekretnine']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  postgres-data:

@@ -35,9 +35,13 @@ export async function Header() {
               </Link>
               <span className="text-sm opacity-70">{user.name}</span>
               {user.isAdmin && (
-                <span className="rounded-full border border-black/15 dark:border-white/20 px-2 py-0.5 text-xs">
+                <Link
+                  href="/admin"
+                  className="rounded-full border border-black/15 dark:border-white/20 px-2 py-0.5 text-xs
+                             hover:border-black/40 dark:hover:border-white/50"
+                >
                   admin
-                </span>
+                </Link>
               )}
               <SignOutButton />
             </>

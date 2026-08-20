@@ -33,7 +33,11 @@ export const ALLOWED_TRANSITIONS: Record<ListingStatus, readonly ListingStatus[]
   DRAFT: ['PENDING'],
   PENDING: ['PUBLISHED', 'REJECTED'],
   REJECTED: ['DRAFT'],
-  PUBLISHED: ['EXPIRED', 'SOLD'],
+  // REJECTED here is the admin takedown: pulling something already live back
+  // off the site with a reason the seller can read. It lands in REJECTED
+  // rather than a status of its own because the recovery path is identical —
+  // the seller edits, which moves it to DRAFT, and resubmits.
+  PUBLISHED: ['EXPIRED', 'SOLD', 'REJECTED'],
   EXPIRED: ['PENDING'],
   SOLD: [],
 }

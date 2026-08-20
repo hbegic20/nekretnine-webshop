@@ -51,7 +51,10 @@ DRAFT ──submit──> PENDING ──approve──> PUBLISHED ──┬──
 - **DRAFT** — seller is still working on it. Visible only to its owner.
 - **PENDING** — submitted, waiting for admin. Visible to owner and admins.
 - **REJECTED** — admin declined, with a reason the seller can read. Editable
-  back into DRAFT and resubmittable.
+  back into DRAFT and resubmittable. Also where an **admin takedown** lands:
+  pulling something already live off the site reuses this status rather than
+  inventing another, because the recovery path is identical — the seller edits,
+  which moves it to DRAFT, and resubmits.
 - **PUBLISHED** — live and publicly visible. Has a `published_at` and an
   `expires_at`.
 - **EXPIRED** — past `expires_at`. Removed from public search automatically.
@@ -151,10 +154,25 @@ database and not in the repo. One image is the cover. Reordering, deletion,
 size limits, and type validation. Thumbnails generated on upload.
 
 ### 4.9 Admin moderation
-A queue of PENDING listings. For each: view it as the buyer would, approve or
-reject with a reason, record the offline payment (amount, method, date,
-reference note), and set the expiry duration. Plus the ability to unpublish
-anything already live.
+A queue at `/admin`, with a tab per status and a live count on each. PENDING is
+ordered **oldest first** — the opposite of every other list in the app, because
+a queue is worked from the front, and newest-first would leave whoever
+submitted three days ago waiting behind everyone since.
+
+The review page shows the listing exactly as a buyer would see it (reviewing
+anything less means approving something you have not actually looked at),
+alongside the owner's contact details, the payment ledger, and how many
+inquiries and saves it has — the closest thing to evidence the queue has, and
+worth a glance before taking something down.
+
+Approving sets the expiry duration and records the offline payment (amount,
+method, date, note). The payment is only written when money actually changed
+hands: an amount of zero recorded as a payment would be a lie in the ledger,
+since "they paid nothing" and "we did not charge them" are different facts.
+
+Admin pages return **404 to non-admins**, not 403 or a login redirect. Someone
+signed in as a buyer being sent to a login page is nonsense, and a 404 tells a
+prober less than a 403 does.
 
 ---
 

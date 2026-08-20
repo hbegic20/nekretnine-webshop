@@ -10,6 +10,7 @@ import { authRouter } from './routes/auth.js'
 import { listingsRouter } from './routes/listings.js'
 import { imageItemRouter } from './routes/images.js'
 import { favoritesRouter } from './routes/favorites.js'
+import { adminRouter } from './routes/admin.js'
 
 export function createApp() {
   const app = express()
@@ -93,6 +94,7 @@ export function createApp() {
   app.use('/api/listings', listingsRouter)
   app.use('/api/images', imageItemRouter)
   app.use('/api/favorites', favoritesRouter)
+  app.use('/api/admin', adminRouter)
   // Further resources land here — one file per resource, as CLAUDE.md requires.
 
   app.use(notFoundHandler)

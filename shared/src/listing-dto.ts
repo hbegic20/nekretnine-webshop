@@ -150,3 +150,49 @@ export interface MapPin {
  * first 500" rather than a browser tab locking up.
  */
 export const MAX_MAP_PINS = 500
+
+/*
+ * ---------------------------------------------------------------------------
+ * Admin shapes
+ * ---------------------------------------------------------------------------
+ * Separate from the public ones because they carry things the public must
+ * never see: who owns a listing, and what was paid for it. Keeping them in
+ * distinct types means an admin field cannot reach a public endpoint by
+ * someone widening a shared interface.
+ */
+
+export interface ListingOwner {
+  id: string
+  name: string
+  email: string
+  phone: string | null
+}
+
+export interface AdminListingSummary extends ListingSummary {
+  owner: ListingOwner
+  submittedAt: string
+  expiresAt: string | null
+}
+
+export interface PaymentRecord {
+  id: string
+  /** Whole KM, same convention as listing prices. */
+  amount: number
+  method: string
+  note: string | null
+  paidAt: string
+  recordedAt: string
+}
+
+export interface AdminListingDetail extends ListingDetail {
+  owner: ListingOwner
+  payments: PaymentRecord[]
+  inquiryCount: number
+  favoriteCount: number
+}
+
+/** How many listings sit in each status, for the queue's tab counts. */
+export type ListingStatusCounts = Record<ListingStatus, number>
+
+/** Payment methods offered in the approval form. Free text is still allowed. */
+export const PAYMENT_METHODS = ['gotovina', 'bankovni transfer', 'ostalo'] as const

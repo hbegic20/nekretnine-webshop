@@ -1,5 +1,7 @@
+import Link from 'next/link'
 import { TOWNS } from 'shared'
 import { serverFetch } from '@/lib/api'
+import { getCurrentUser } from '@/lib/auth'
 
 /**
  * Phase 3 placeholder. This is not the real home page — it exists to prove the
@@ -22,14 +24,30 @@ async function checkApi(): Promise<Readiness | { status: 'unreachable'; database
 }
 
 export default async function HomePage() {
-  const health = await checkApi()
+  // Both are independent, so fire them together rather than awaiting one and
+  // then the other — two round trips become one wait.
+  const [health, user] = await Promise.all([checkApi(), getCurrentUser()])
   const healthy = health.status === 'ready'
 
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-16">
       <h1 className="text-3xl font-semibold tracking-tight">Nekretnine</h1>
       <p className="mt-2 text-sm opacity-70">
-        Scaffold is up. Phase 4 builds auth, listings and search on top of this.
+        {user ? (
+          <>Prijavljeni ste kao {user.name}.</>
+        ) : (
+          <>
+            Auth is live.{' '}
+            <Link href="/register" className="underline underline-offset-4">
+              Registrujte se
+            </Link>{' '}
+            or{' '}
+            <Link href="/login" className="underline underline-offset-4">
+              prijavite se
+            </Link>
+            . Listings and search come next.
+          </>
+        )}
       </p>
 
       <section className="mt-10">

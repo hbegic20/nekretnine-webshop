@@ -5,6 +5,8 @@ import { env } from './env.js'
 import { log } from './log.js'
 import { db } from './db/index.js'
 import { errorHandler, notFoundHandler } from './http/errors.js'
+import { loadUser } from './middleware/auth.js'
+import { authRouter } from './routes/auth.js'
 
 export function createApp() {
   const app = express()
@@ -77,10 +79,16 @@ export function createApp() {
     }
   })
 
-  // Feature routes are added here in Phase 4:
-  //   app.use('/api/auth', authRoutes)
-  //   app.use('/api/listings', listingRoutes)
-  //   …one file per resource, as CLAUDE.md requires.
+  /**
+   * Identify the caller before any route runs. This never rejects anyone — it
+   * only attaches `req.user` when there is a valid session cookie, so public
+   * routes can still personalise themselves. See middleware/auth.ts.
+   */
+  app.use('/api', loadUser)
+
+  app.use('/api/auth', authRouter)
+  // Further resources land here in 4.2 onward — one file per resource,
+  // as CLAUDE.md requires.
 
   app.use(notFoundHandler)
   app.use(errorHandler)

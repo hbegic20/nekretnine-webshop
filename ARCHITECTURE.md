@@ -348,6 +348,25 @@ Three levels: public, authenticated, admin — plus ownership checks in services
 (`listing.owner_id === user.id`). Ownership is checked at the data layer, never
 by hiding a button in the UI.
 
+Middleware separates two questions that are easy to conflate. `loadUser` runs
+on every `/api` request and only answers *who is this, if anyone* — it never
+rejects. `requireAuth` and `requireAdmin` are per-route guards that answer *is
+that good enough*. Keeping them apart means a public route can still
+personalise itself (showing which listings you have favourited) without special
+casing, and it puts the authorization decision in the route definition, where a
+missing one is visible during review.
+
+**Registration is role-neutral.** Signing up does not ask whether you intend to
+buy or sell, and creates a user with both flags false. `is_seller` is set
+automatically the first time someone creates a listing (Phase 4.2). The
+alternative — a "what kind of account?" question at signup — asks people to
+commit before they know, and produces a flag that records an intention rather
+than a fact. Easy to reverse: it is one checkbox on the form and one line in
+the register handler if we ever want it.
+
+`is_admin` is never settable through the API at all. It is granted by hand in
+the database.
+
 ---
 
 ## 6. Images — a storage adapter, disk in dev and R2 in production

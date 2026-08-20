@@ -2,8 +2,29 @@ import { createApp } from './app.js'
 import { env } from './env.js'
 import { log } from './log.js'
 import { pool } from './db/index.js'
+import { deleteExpiredSessions } from './services/auth.js'
 
 const app = createApp()
+
+/**
+ * Sweep expired session rows hourly.
+ *
+ * They are harmless — nothing can authenticate against an expired row, since
+ * getUserBySessionToken checks the date — but without this the table only ever
+ * grows. `unref()` keeps the timer from holding the process open during
+ * shutdown.
+ */
+const sessionSweep = setInterval(
+  () => {
+    void deleteExpiredSessions().catch((error: unknown) => {
+      log.warn('session sweep failed', {
+        error: error instanceof Error ? error.message : String(error),
+      })
+    })
+  },
+  60 * 60 * 1000,
+)
+sessionSweep.unref()
 
 const server = app.listen(env.PORT, () => {
   log.info('api listening', {
@@ -25,6 +46,7 @@ const server = app.listen(env.PORT, () => {
  */
 function shutdown(signal: string): void {
   log.info('shutting down', { signal })
+  clearInterval(sessionSweep)
 
   server.close(() => {
     void pool.end().then(() => {

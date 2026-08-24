@@ -6,7 +6,6 @@ import {
   TRANSACTION_TYPES,
   isWithinRegion,
   parseListingFilters,
-  type ListingInput,
 } from 'shared'
 import { currentUser, requireAdmin, requireAuth } from '../middleware/auth.js'
 import {
@@ -195,7 +194,7 @@ listingsRouter.get('/:id', async (req, res) => {
 
 /** POST /api/listings — always creates a DRAFT. */
 listingsRouter.post('/', requireAuth, async (req, res) => {
-  const input = createSchema.parse(req.body) as ListingInput
+  const input = createSchema.parse(req.body)
   const listing = await createListing(currentUser(req), input)
   res.status(201).json({ listing: await getListingDetail(listing.id, req.user) })
 })

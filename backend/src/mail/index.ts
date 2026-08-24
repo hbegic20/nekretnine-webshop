@@ -29,7 +29,9 @@ export interface Mailer {
 export class ConsoleMailer implements Mailer {
   readonly name = 'console'
 
-  async send(message: Message): Promise<void> {
+  // Not `async`: there is nothing to await, and marking it async would claim
+  // otherwise. Returning a resolved promise satisfies the Mailer interface.
+  send(message: Message): Promise<void> {
     const divider = '─'.repeat(60)
     console.log(
       [
@@ -46,13 +48,17 @@ export class ConsoleMailer implements Mailer {
         .filter(Boolean)
         .join('\n'),
     )
+    return Promise.resolve()
   }
 }
 
 /** Production mailer. SMTP_URL works with Resend, Postmark, Mailgun, etc. */
 export class SmtpMailer implements Mailer {
   readonly name = 'smtp'
-  private readonly transport = nodemailer.createTransport(env.SMTP_URL!)
+  // env.ts refuses to start without SMTP_URL when MAIL_DRIVER=smtp, so the
+  // non-null assertion that used to be here was telling TypeScript something
+  // it already knew.
+  private readonly transport = nodemailer.createTransport(env.SMTP_URL)
 
   async send(message: Message): Promise<void> {
     await this.transport.sendMail({

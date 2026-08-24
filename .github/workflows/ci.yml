@@ -1,0 +1,138 @@
+name: CI
+
+# Two triggers, doing two different jobs.
+#
+#   pull_request  gate the change before it lands
+#   push to main  gate it again on the merge result, and publish images
+#
+# Both matter. A PR is tested against its own branch, and "green on the branch"
+# is not the same as "green once merged" when two PRs touch related code.
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+# Least privilege by default. The images job widens this for itself.
+permissions:
+  contents: read
+
+# Pushing twice in quick succession cancels the older run. Nobody needs the
+# results of a commit that has already been replaced, and it keeps the queue
+# short on a free plan.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    name: Lint · typecheck · test · build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          # 24, matching the Docker images, not the 26 on the dev machine.
+          # CI exists to test what will actually run, and what runs in
+          # production is the container.
+          node-version: '24'
+          cache: npm
+
+      # Plain `npm ci` here, unlike the Dockerfiles which need
+      # --ignore-scripts. The difference: the source tree is already checked
+      # out at this point, so the `shared` workspace's prepare script can
+      # compile it. In Docker, dependencies are installed before the sources
+      # are copied, so the same script would fail.
+      - run: npm ci
+
+      # Ordered cheapest-first, so an obvious mistake fails in seconds rather
+      # than after a four-minute build.
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      # Catches the errors that only appear at build time — a Server Component
+      # importing something client-only, a type that only the Next compiler
+      # rejects. `tsc --noEmit` does not see these.
+      - name: Build
+        run: npm run build
+
+  images:
+    name: Build and push images
+    needs: check
+    # Only on a real merge to main. Pull requests get the check job alone:
+    # building images for a branch that may never land wastes minutes, and
+    # publishing them from an unmerged PR would be worse.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      # Required to push to ghcr.io. Granted here rather than at the workflow
+      # level so the check job, which runs untrusted PR code, never has it.
+      packages: write
+
+    strategy:
+      # Both images build independently, so run them at once. fail-fast off:
+      # if the backend image breaks, still find out whether the frontend does
+      # too, rather than learning it one push later.
+      fail-fast: false
+      matrix:
+        include:
+          - name: backend
+            dockerfile: infra/docker/Dockerfile.backend
+            build_args: ''
+          - name: frontend
+            dockerfile: infra/docker/Dockerfile.frontend
+            # Baked in at build time, because Next resolves rewrite
+            # destinations during `next build` (see next.config.ts). This
+            # value is the docker-compose service name, so the published
+            # image is only directly useful in that topology — deploying to
+            # a real host means rebuilding with that host's API URL. Noted
+            # here rather than discovered later.
+            build_args: |
+              BACKEND_URL=http://backend:4000
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          # Built in. No secret to create, rotate, or leak — the reason GHCR
+          # was chosen over Docker Hub.
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute tags
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}/${{ matrix.name }}
+          tags: |
+            type=raw,value=latest
+            type=sha,format=long
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          # Root context, because both Dockerfiles copy from the workspace
+          # root — they need package-lock.json and the shared package, not
+          # just their own directory.
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # Layer cache in GitHub's own store. Without it every run reinstalls
+          # every dependency from scratch.
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: ${{ matrix.build_args }}

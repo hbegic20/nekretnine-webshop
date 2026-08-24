@@ -33,22 +33,17 @@ function visible(...conditions: (SQL | undefined)[]): SQL | undefined {
 }
 
 /**
- * What the public may *open*: published, plus sold.
- *
- * A sold listing keeps working at its own URL — links to it are shared, and it
- * is the only record this market has of what things actually went for.
- */
-function publiclyViewable(...conditions: (SQL | undefined)[]): SQL | undefined {
-  return visible(inArray(listings.status, [...PUBLIC_STATUSES]), ...conditions)
-}
-
-/**
- * What the public *browses*, which is narrower (SPEC.md §3).
+ * What the public *browses* (SPEC.md §3).
  *
  * Sold listings are excluded from search results unless asked for, because
  * someone looking for a flat to buy does not want a page of ones they cannot
- * have. Opening one directly still works — that is `publiclyViewable` above.
- * Two different questions, so two different conditions.
+ * have. Opening one directly still works — that is a different question, and
+ * it is answered by `assertCanView` on the single-listing path rather than by
+ * a condition here.
+ *
+ * (There was briefly a matching `publiclyViewable` helper for that other
+ * question. The linter found it had never been called: reads of one listing go
+ * through `getListingRow` + `assertCanView`, which already covers it.)
  */
 function publiclyListed(includeSold: boolean, ...conditions: (SQL | undefined)[]): SQL | undefined {
   const statuses = includeSold ? [...PUBLIC_STATUSES] : (['PUBLISHED'] as const)

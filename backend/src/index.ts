@@ -3,6 +3,7 @@ import { env } from './env.js'
 import { log } from './log.js'
 import { pool } from './db/index.js'
 import { deleteExpiredSessions } from './services/auth.js'
+import { expireDueListings } from './services/expiry.js'
 
 const app = createApp()
 
@@ -26,6 +27,33 @@ const sessionSweep = setInterval(
 )
 sessionSweep.unref()
 
+/**
+ * Expire listings whose date has passed, hourly.
+ *
+ * An hour is deliberately coarse. Nobody minds a listing staying up for
+ * another forty minutes past midnight on its expiry day, and checking every
+ * minute would be sixty times the queries for no benefit anyone can perceive.
+ *
+ * It also runs shortly after boot, so a deploy or restart catches anything
+ * that fell due while the process was down.
+ */
+const expirySweep = setInterval(
+  () => {
+    void expireDueListings().catch((error: unknown) => {
+      log.warn('expiry sweep failed', {
+        error: error instanceof Error ? error.message : String(error),
+      })
+    })
+  },
+  60 * 60 * 1000,
+)
+expirySweep.unref()
+
+const catchUpAfterBoot = setTimeout(() => {
+  void expireDueListings().catch(() => undefined)
+}, 10_000)
+catchUpAfterBoot.unref()
+
 const server = app.listen(env.PORT, () => {
   log.info('api listening', {
     port: env.PORT,
@@ -47,6 +75,8 @@ const server = app.listen(env.PORT, () => {
 function shutdown(signal: string): void {
   log.info('shutting down', { signal })
   clearInterval(sessionSweep)
+  clearInterval(expirySweep)
+  clearTimeout(catchUpAfterBoot)
 
   server.close(() => {
     void pool.end().then(() => {

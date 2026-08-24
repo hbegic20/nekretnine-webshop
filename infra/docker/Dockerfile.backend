@@ -1,0 +1,85 @@
+# syntax=docker/dockerfile:1
+
+# Debian slim rather than Alpine, deliberately.
+#
+# Alpine images are much smaller, and the usual advice is to prefer them. But
+# this backend depends on sharp and argon2, both of which ship precompiled
+# native binaries — and their prebuilds target glibc, which Alpine does not
+# have. Alpine works only if the musl variants resolve correctly, which is a
+# well-known source of "builds fine, crashes on start".
+#
+# ~80 MB of image size against a class of native-module failures is a trade
+# worth making here. Revisit if image size ever actually matters.
+FROM node:24-bookworm-slim AS build
+WORKDIR /app
+
+# Package manifests first, sources second.
+#
+# Docker caches each layer and invalidates everything after the first change.
+# Dependencies change rarely and sources change constantly, so installing
+# before copying the code means editing a route does not reinstall 400
+# packages.
+COPY package.json package-lock.json ./
+COPY shared/package.json ./shared/
+COPY backend/package.json ./backend/
+COPY frontend/package.json ./frontend/
+
+# --ignore-scripts, then an explicit rebuild.
+#
+# The `shared` workspace has a `prepare` script that compiles it, and npm runs
+# prepare during install — before the sources exist at this point in the build.
+# Skipping scripts avoids that ordering problem; `npm rebuild` afterwards
+# re-runs the install steps that actually matter, which are the native ones.
+RUN npm ci --ignore-scripts
+
+COPY shared ./shared
+COPY backend ./backend
+
+RUN npm rebuild --workspace=backend \
+ && npm run build --workspace=shared \
+ && npm run build --workspace=backend
+
+# Drop build-only dependencies before they can be copied forward.
+#
+# `--ignore-scripts` again, and this one cost a failed build to learn: prune
+# re-runs lifecycle scripts, so `shared`'s prepare fired *after* TypeScript had
+# just been removed as a dev dependency, and the build died with a bare
+# "exit code 127" from tsc not existing.
+#
+# The general shape: any npm command that changes the tree can trigger
+# prepare, so a workspace whose prepare compiles it needs scripts suppressed
+# everywhere except the one place the build is actually wanted.
+RUN npm prune --omit=dev --ignore-scripts
+
+
+FROM node:24-bookworm-slim AS runner
+ENV NODE_ENV=production
+
+# Only what is needed to run: compiled output, pruned dependencies, and the
+# migration SQL. No TypeScript, no source, no test files.
+WORKDIR /app
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/package.json ./package.json
+COPY --from=build /app/shared/package.json ./shared/package.json
+COPY --from=build /app/shared/dist ./shared/dist
+COPY --from=build /app/backend/package.json ./backend/package.json
+COPY --from=build /app/backend/dist ./backend/dist
+COPY --from=build /app/backend/src/db/migrations ./backend/src/db/migrations
+
+WORKDIR /app/backend
+
+# Run as a non-root user. The node images ship one; using it means a process
+# that gets compromised cannot write to the rest of the filesystem. The uploads
+# directory is created and handed over explicitly, because it is the one place
+# the app legitimately writes.
+RUN mkdir -p uploads && chown -R node:node /app/backend/uploads
+USER node
+
+EXPOSE 4000
+
+# The liveness endpoint, not the readiness one: this asks "is the process
+# alive", and must not fail because the database blipped. See src/app.ts.
+HEALTHCHECK --interval=10s --timeout=3s --start-period=15s --retries=5 \
+  CMD node -e "fetch('http://127.0.0.1:4000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
+CMD ["node", "dist/index.js"]

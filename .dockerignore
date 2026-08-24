@@ -1,0 +1,32 @@
+# Anything here is invisible to `docker build`, which does two jobs:
+# it keeps the build context small (faster builds), and it stops local state
+# leaking into an image.
+#
+# node_modules is the important one. Copying it in would ship binaries
+# compiled for macOS into a Linux image — sharp and argon2 would fail at
+# runtime with an error that points nowhere near the real cause.
+node_modules
+**/node_modules
+
+# Build output — the image builds its own.
+**/dist
+**/.next
+**/out
+
+# Local secrets and state. .env is gitignored too, but .dockerignore is a
+# separate list: forgetting it here would bake real credentials into an image
+# layer, where they survive even if a later layer deletes the file.
+.env
+**/.env
+**/.env.local
+**/.env*.local
+
+# Locally uploaded images live on a volume, not in the image.
+backend/uploads
+
+.git
+.github
+**/*.log
+**/coverage
+.DS_Store
+**/*.tsbuildinfo

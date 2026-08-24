@@ -17,9 +17,13 @@
     "db:up": "docker compose -f infra/docker-compose.yml up -d",
     "db:down": "docker compose -f infra/docker-compose.yml down",
     "db:psql": "docker compose -f infra/docker-compose.yml exec postgres psql -U nekretnine -d nekretnine",
+    "stack:up": "docker compose -f infra/docker-compose.yml up --build -d",
+    "stack:down": "docker compose -f infra/docker-compose.yml down",
+    "stack:logs": "docker compose -f infra/docker-compose.yml logs -f",
     "db:generate": "npm run db:generate --workspace=backend",
     "db:migrate": "npm run db:migrate --workspace=backend",
-    "db:seed": "npm run db:seed --workspace=backend"
+    "db:seed": "npm run db:seed --workspace=backend",
+    "job:expire": "npm run job:expire --workspace=backend"
   },
   "engines": {
     "node": ">=20"

@@ -1,0 +1,59 @@
+# syntax=docker/dockerfile:1
+
+FROM node:24-bookworm-slim AS build
+WORKDIR /app
+
+COPY package.json package-lock.json ./
+COPY shared/package.json ./shared/
+COPY backend/package.json ./backend/
+COPY frontend/package.json ./frontend/
+RUN npm ci --ignore-scripts
+
+COPY shared ./shared
+COPY frontend ./frontend
+
+RUN npm run build --workspace=shared
+
+# BACKEND_URL is a BUILD argument, not a runtime variable, and that is not a
+# mistake — see the long note in frontend/next.config.ts. Next evaluates
+# rewrites() during `next build` and bakes the destination into
+# routes-manifest.json, so setting this in docker-compose's `environment:`
+# would do nothing at all.
+#
+# The default matches the service name in docker-compose.yml, because inside a
+# compose network that is the backend's hostname.
+ARG BACKEND_URL=http://backend:4000
+ENV BACKEND_URL=$BACKEND_URL
+
+RUN npm run build --workspace=frontend
+
+
+FROM node:24-bookworm-slim AS runner
+ENV NODE_ENV=production
+WORKDIR /app
+
+# `output: 'standalone'` produced a directory containing a server and only the
+# node_modules Next traced as reachable. Static assets and public files are not
+# included in it and have to be copied alongside — a documented quirk, and the
+# usual cause of a containerised Next app serving HTML with no CSS.
+COPY --from=build /app/frontend/.next/standalone ./
+COPY --from=build /app/frontend/.next/static ./frontend/.next/static
+COPY --from=build /app/frontend/public ./frontend/public
+
+USER node
+EXPOSE 3000
+
+# HOSTNAME=0.0.0.0 is required, not cosmetic: the standalone server binds to
+# localhost by default, which inside a container means nothing outside it can
+# connect, and the port mapping appears silently broken.
+#
+# BACKEND_URL is set again here as a runtime default. The build arg above only
+# affected the rewrite baked into the build; Server Components read this at
+# request time. docker-compose overrides it, but a container run on its own
+# still gets something sensible rather than pointing at itself.
+ENV PORT=3000 HOSTNAME=0.0.0.0 BACKEND_URL=http://backend:4000
+
+HEALTHCHECK --interval=10s --timeout=3s --start-period=20s --retries=5 \
+  CMD node -e "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+
+CMD ["node", "frontend/server.js"]

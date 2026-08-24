@@ -621,6 +621,88 @@ learn for no benefit.
 
 ---
 
+## 8.5 Containers, and the two lessons in them
+
+`docker compose -f infra/docker-compose.yml up --build` runs Postgres, a
+one-shot migration container, the API and the frontend. `npm run stack:up` is
+the short form.
+
+This is **not** the loop for writing features — `npm run dev:*` reloads in
+milliseconds where a rebuild takes a minute. It answers a different question:
+does the thing work when packaged the way it will be deployed?
+
+**Migrations run as their own container**, not on API start-up, with the API
+waiting on `service_completed_successfully`. If a migration fails it fails
+loudly there instead of putting the API into a restart loop that buries the
+real error — and when several API instances start at once, only one thing is
+touching the schema.
+
+**Both images are Debian slim, not Alpine.** The usual advice is Alpine for
+size, but sharp and argon2 ship prebuilt native binaries targeting glibc, which
+Alpine does not have. Roughly 80 MB against a class of "builds fine, crashes on
+start" failures is a trade worth making.
+
+### The two things that actually broke
+
+Worth recording, because both are the kind of bug that only appears once the
+app is containerised.
+
+**1. `BACKEND_URL` is needed at two different times.** Next resolves
+`rewrites()` during `next build` and bakes the destination into
+`routes-manifest.json` — so it is a *build argument*. But `lib/api.ts` reads
+the same variable at *request* time, because Server Components call the API
+directly and the rewrite only applies to requests arriving from a browser.
+
+Setting only the build arg produced a stack where `/api/listings` returned data
+perfectly while every server-rendered page threw `ECONNREFUSED` against
+`127.0.0.1:4000` — the fallback default, which inside a container is the
+container itself. It is set in both places now, with a comment at each.
+
+The general lesson: **build-time and run-time configuration are different
+things**, and a framework can need the same value as both.
+
+**2. `npm prune` re-runs lifecycle scripts.** The `shared` workspace's
+`prepare` script compiles it, and prune fired that script immediately after
+removing TypeScript as a dev dependency — the build died with a bare `exit code
+127`. Any npm command that changes the tree can trigger `prepare`, so scripts
+are suppressed everywhere except the one step where the build is actually
+wanted.
+
+### Storage in the local stack
+
+The compose backend runs with `NODE_ENV=development` on purpose. The config
+guard refuses production plus disk storage, and it is right to — this
+container's filesystem is exactly as ephemeral as a deploy target's. With no
+local object storage (MinIO was declined in Phase 2) the honest choices were
+"run this stack in development mode" or "add a container we said we did not
+want". A named volume keeps uploads across restarts, and the guard stays in
+force where it matters.
+
+## 8.6 Listing expiry
+
+`expires_at` was decoration until Phase 5 — an admin set it and nothing read
+it, so listings stayed live forever, which undermines the whole paid-listing
+model.
+
+A single atomic `UPDATE ... WHERE status = 'PUBLISHED' AND expires_at < now()
+RETURNING ...` does the work. Both halves of that matter: it is atomic, so two
+API instances cannot expire the same row twice and send two emails; and `now()`
+is evaluated by **Postgres**, so the decision uses the database clock rather
+than a container's, which drift.
+
+It runs hourly in-process, plus once shortly after boot to catch anything that
+fell due while the process was down. An hour is deliberately coarse — nobody
+notices a listing lingering forty minutes past midnight, and a per-minute check
+would be sixty times the queries for no perceptible gain.
+
+The same work is also exposed as `npm run job:expire`, so moving to a real
+scheduler later is a cron entry rather than a code change.
+
+Sellers are emailed when their listing expires. That is the point of the
+feature rather than a nicety: a listing that vanishes silently looks like the
+site lost it, and the seller has no prompt to renew — which is the one action
+that earns money here.
+
 ## 9. Production shape (sketched — Phase 6 decides)
 
 Frontend to Vercel or Netlify; backend as a Docker image on Render or Railway;

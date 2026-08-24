@@ -1,0 +1,2 @@
+# Keeps this directory in git so the Dockerfile can COPY it.
+# Static files served at the site root go here (robots.txt, og images…).

@@ -1,9 +1,14 @@
-# Local development services.
+# The whole stack, locally, with one command:
 #
-# Phase 3 runs only Postgres here — the frontend and backend still run on your
-# machine with `npm run dev:frontend` / `npm run dev:backend`, which gives much
-# faster reloads while building features. Containers for both arrive in Phase 5,
-# when the goal becomes "the whole stack comes up with one command".
+#   docker compose -f infra/docker-compose.yml up --build
+#   (or: npm run stack:up)
+#
+# Phase 3 ran only Postgres here and both apps on the host, which is still the
+# faster loop for writing features — `npm run dev:*` reloads in milliseconds
+# where a rebuild takes a minute. This file is for the other question: does the
+# thing actually work when packaged the way it will be deployed?
+
+name: nekretnine
 
 services:
   postgres:
@@ -15,20 +20,120 @@ services:
       POSTGRES_PASSWORD: nekretnine
       POSTGRES_DB: nekretnine
     ports:
-      # Exposed on the host so the API (running outside Docker) can reach it,
-      # and so you can connect a GUI client if you want one.
+      # Still published to the host so `npm run db:psql` and a GUI client keep
+      # working, and so the host-run dev servers can reach it.
       - '5432:5432'
     volumes:
-      # A named volume, so `docker compose down` keeps your data.
-      # `docker compose down -v` is what actually wipes it.
       - postgres-data:/var/lib/postgresql/data
     healthcheck:
-      # Other services can wait for this instead of racing a database that has
-      # accepted a TCP connection but is not ready to answer queries yet.
       test: ['CMD-SHELL', 'pg_isready -U nekretnine -d nekretnine']
       interval: 5s
       timeout: 5s
       retries: 10
 
+  # Migrations run as their own one-shot container, not on API start-up.
+  #
+  # Two reasons. If a migration fails, it fails here, loudly, instead of
+  # putting the API into a restart loop that buries the real error. And when
+  # several API instances start at once, only one thing is touching the schema
+  # — API instances racing to migrate the same database is a genuinely nasty
+  # class of bug.
+  migrate:
+    build:
+      context: ..
+      dockerfile: infra/docker/Dockerfile.backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://nekretnine:nekretnine@postgres:5432/nekretnine
+      # Satisfies the config check; this container never serves a request or
+      # touches storage, it only runs the migration and exits.
+      STORAGE_DRIVER: s3
+      S3_BUCKET: unused
+      S3_ACCESS_KEY_ID: unused
+      S3_SECRET_ACCESS_KEY: unused
+      S3_PUBLIC_BASE_URL: http://unused
+    command: ['node', 'dist/db/migrate.js']
+    restart: 'no'
+
+  backend:
+    build:
+      context: ..
+      dockerfile: infra/docker/Dockerfile.backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+      migrate:
+        # Wait for the migration to finish successfully, rather than merely to
+        # start. Without this the API can come up against a schema that is
+        # half-applied or not applied at all.
+        condition: service_completed_successfully
+    environment:
+      # Development, in a production-shaped stack — and worth understanding
+      # rather than copying.
+      #
+      # The app refuses to start with NODE_ENV=production and disk storage,
+      # because container filesystems are wiped on deploy and uploads would
+      # silently vanish (ARCHITECTURE.md §6.2). That guard is correct, and it
+      # applies here too: this container's disk is just as ephemeral.
+      #
+      # We do not have object storage locally — MinIO was declined in Phase 2 —
+      # so the honest options were "run this stack in development mode" or "add
+      # a container we said we did not want". The volume below keeps uploads
+      # across restarts, and the guard stays in force for real deployments,
+      # which is where it matters.
+      NODE_ENV: development
+      PORT: 4000
+      DATABASE_URL: postgres://nekretnine:nekretnine@postgres:5432/nekretnine
+      SESSION_TTL_DAYS: 30
+      STORAGE_DRIVER: disk
+      UPLOAD_DIR: ./uploads
+      PUBLIC_UPLOAD_BASE_URL: http://localhost:4000/uploads
+      MAIL_DRIVER: console
+      MAIL_FROM: Nekretnine <noreply@example.com>
+    ports:
+      - '4000:4000'
+    volumes:
+      # Named volume, so images uploaded through the containerised stack
+      # survive a rebuild. Without it every `up --build` loses them.
+      - backend-uploads:/app/backend/uploads
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: infra/docker/Dockerfile.frontend
+      args:
+        # Build-time, because Next bakes rewrite destinations into the build.
+        # `backend` is the service name above, which is its hostname on the
+        # compose network.
+        BACKEND_URL: http://backend:4000
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      # Yes, BACKEND_URL appears twice — as a build arg above and again here.
+      # It is not a duplicate, it is two different mechanisms needing the same
+      # address at two different moments:
+      #
+      #   build time  the /api/* rewrite, which Next resolves during
+      #               `next build` and bakes into routes-manifest.json
+      #   run time    lib/api.ts, which Server Components use to call the API
+      #               directly — the rewrite only applies to requests arriving
+      #               from a browser, not to fetches Next makes itself
+      #
+      # Omitting the runtime one is how this first came up: the proxy worked
+      # fine, so /api/listings returned data, while every server-rendered page
+      # threw ECONNREFUSED against 127.0.0.1:4000 — the fallback default,
+      # which inside this container points at the container itself.
+      BACKEND_URL: http://backend:4000
+      NEXT_PUBLIC_SITE_URL: http://localhost:3000
+    ports:
+      - '3000:3000'
+    restart: unless-stopped
+
 volumes:
   postgres-data:
+  backend-uploads:

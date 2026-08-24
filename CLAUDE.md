@@ -41,8 +41,12 @@ Settled in Phase 2 — see ARCHITECTURE.md for the reasoning behind each line.
 - Prices are integers in whole KM — never floats, never decimals
 - Enums and shared vocabulary live in /shared, so the DB enum and the UI dropdown
   are built from the same array
-- Local dev: `npm run db:up`, then `npm run dev:backend` and `npm run dev:frontend`
-  in two terminals. The full docker-compose stack arrives in Phase 5
+- Local dev is one command: `npm run dev` — starts Postgres, migrates, seeds if
+  empty, then runs both dev servers with labelled output. Ctrl-C stops both and
+  leaves Postgres up
+- `npm run stack:up` runs the whole thing in containers instead. That is for
+  checking the packaging, not for writing features — never run both, they fight
+  over ports 3000 and 4000
 
 ## Do NOT
 - Don't add a new dependency (npm/pip package, external service) without asking first

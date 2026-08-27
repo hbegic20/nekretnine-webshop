@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { Archivo, Source_Serif_4 } from 'next/font/google'
 import './globals.css'
 import { Header } from '@/components/Header'
@@ -59,6 +59,26 @@ try {
   if (t === 'dark' || t === 'light') document.documentElement.dataset.theme = t;
 } catch (e) {}
 `
+
+/**
+ * Paints the browser's own chrome to match the page.
+ *
+ * On a phone this is the strip above and below the site — the address bar and
+ * the gesture area. Without it they stay light while the page is dark, and the
+ * seam is the most obvious "this is a website in a browser" tell there is.
+ *
+ * Only the media-query form is available here: a manual theme choice lives in
+ * localStorage, which the browser cannot consult when painting its own UI. So
+ * someone who forces dark on a light OS still gets a light address bar. That
+ * is a real limit, not an oversight, and it is worth less than the flash of
+ * mismatched chrome everyone else avoids.
+ */
+export const viewport: Viewport = {
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: '#fbfbf9' },
+    { media: '(prefers-color-scheme: dark)', color: '#0c1413' },
+  ],
+}
 
 // Typed explicitly rather than with Next's generated `LayoutProps<'/'>` helper.
 // That helper lives in .next/types, which only exists after a build has run —

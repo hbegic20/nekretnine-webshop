@@ -28,7 +28,7 @@ export default async function LoginPage({
   const nextPath = next && next.startsWith('/') && !next.startsWith('//') ? next : '/'
 
   return (
-    <main className="mx-auto w-full max-w-sm px-6 py-16">
+    <main className="mx-auto w-full max-w-sm px-4 py-10 sm:px-6 sm:py-16">
       <h1 className="text-2xl font-semibold tracking-tight">Prijava</h1>
       <p className="mt-1 mb-8 text-sm opacity-70">Prijavite se da sačuvate oglase.</p>
 

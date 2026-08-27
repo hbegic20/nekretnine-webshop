@@ -19,7 +19,7 @@ export const metadata: Metadata = {
 
 export default function NotFound() {
   return (
-    <main className="mx-auto w-full max-w-3xl px-6 py-20 text-center">
+    <main className="mx-auto w-full max-w-3xl px-4 py-14 sm:px-6 sm:py-20 text-center">
       <p className="text-sm font-medium text-faint">404</p>
 
       <h1 className="mt-3 text-2xl font-semibold tracking-tight">Stranica nije pronađena</h1>

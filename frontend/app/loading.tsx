@@ -11,11 +11,11 @@
  */
 export default function Loading() {
   return (
-    <main className="mx-auto w-full max-w-7xl px-6 py-10" aria-busy="true" aria-live="polite">
+    <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-10" aria-busy="true" aria-live="polite">
       <span className="sr-only">Učitavanje oglasa…</span>
 
       <div className="h-8 w-40 animate-pulse rounded-md bg-sunken" />
-      <div className="mt-6 h-[168px] animate-pulse rounded-card bg-sunken" />
+      <div className="mt-6 h-[104px] animate-pulse rounded-card bg-sunken sm:h-[168px]" />
       <div className="mt-6 h-4 w-28 animate-pulse rounded bg-sunken" />
 
       <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">

@@ -99,11 +99,17 @@ export function ThemeToggle() {
           title={option.title}
           aria-label={option.title}
           aria-pressed={theme === option.value}
-          className={`px-2 py-1 text-xs transition-colors ${
-            theme === option.value
-              ? 'bg-accent text-on-accent'
-              : 'text-muted hover:text-foreground'
-          }`}
+          /*
+           * 44px on a phone, compact on a pointer device. The guideline exists
+           * because a fingertip is about 10mm across; the 26px this used to be
+           * meant three targets inside one thumb.
+           */
+          className={`flex h-11 w-11 items-center justify-center text-sm transition-colors
+                      sm:h-auto sm:w-auto sm:px-2 sm:py-1 sm:text-xs ${
+                        theme === option.value
+                          ? 'bg-accent text-on-accent'
+                          : 'text-muted hover:text-foreground'
+                      }`}
         >
           <span aria-hidden>{option.glyph}</span>
         </button>

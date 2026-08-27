@@ -48,6 +48,18 @@ const fieldClass =
 export function SearchFilters({ filters }: { filters: ListingFilters }) {
   const router = useRouter()
   const [pending, setPending] = useState(false)
+  /*
+   * Collapsed on a phone, always open on a desktop.
+   *
+   * Twelve fields between the heading and the results means scrolling past
+   * five rows of form before seeing a single listing — on a page whose entire
+   * job is showing listings. The search box stays out here because searching
+   * is the common act; the rest is refinement.
+   *
+   * The fields are hidden with `display: none`, which still submits them, so a
+   * search typed in the box carries whatever filters the URL already had.
+   */
+  const [detailsOpen, setDetailsOpen] = useState(false)
   const activeCount = countActiveFilters(filters)
 
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -110,6 +122,25 @@ export function SearchFilters({ filters }: { filters: ListingFilters }) {
         </button>
       </div>
 
+      <button
+        type="button"
+        onClick={() => setDetailsOpen((was) => !was)}
+        aria-expanded={detailsOpen}
+        className="flex min-h-11 w-full items-center justify-between rounded-md border border-hairline
+                   px-3 text-sm text-muted transition-colors hover:text-foreground sm:hidden"
+      >
+        <span>
+          Filteri
+          {activeCount > 0 && (
+            <span className="ml-1.5 rounded-full bg-accent-soft px-1.5 py-0.5 text-xs font-semibold text-accent-ink">
+              {activeCount}
+            </span>
+          )}
+        </span>
+        <span aria-hidden className="text-xs">{detailsOpen ? '▲' : '▼'}</span>
+      </button>
+
+      <div className={`${detailsOpen ? 'flex' : 'hidden'} flex-col gap-3 sm:flex`}>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <select name="town" defaultValue={filters.town ?? ''} aria-label="Grad" className={fieldClass}>
           <option value="">Svi gradovi</option>
@@ -171,6 +202,8 @@ export function SearchFilters({ filters }: { filters: ListingFilters }) {
         />
         Prikaži i prodane oglase
       </label>
+
+      </div>
 
       {activeCount > 0 && (
         <p className="text-sm">

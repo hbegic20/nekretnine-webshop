@@ -37,7 +37,7 @@ export default function Error({
   }, [error])
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-6 py-20 text-center">
+    <main className="mx-auto w-full max-w-3xl px-4 py-14 sm:px-6 sm:py-20 text-center">
       <h1 className="text-2xl font-semibold tracking-tight">Nešto je pošlo po zlu</h1>
 
       <p className="mx-auto mt-4 max-w-md text-sm text-muted">

@@ -18,7 +18,7 @@ export default async function SavedPage() {
   const gone = items.filter((i) => !i.available)
 
   return (
-    <main className="mx-auto w-full max-w-7xl px-6 py-10">
+    <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
       <h1 className="text-2xl font-semibold tracking-tight">Sačuvani oglasi</h1>
       <p className="mt-1 text-sm opacity-70">
         {items.length === 0 ? 'Nemate sačuvanih oglasa.' : listingsCountLabel(items.length)}

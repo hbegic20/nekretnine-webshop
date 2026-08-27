@@ -68,7 +68,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
   ]
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-6 py-12">
+    <main className="mx-auto w-full max-w-3xl px-4 py-8 sm:px-6 sm:py-12">
       {/* Renders nothing for a listing the public cannot open. */}
       <ListingJsonLd listing={listing} />
 

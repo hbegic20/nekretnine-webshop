@@ -22,7 +22,7 @@ export default async function MapPage({
   const pins = await fetchMapPins(filters)
 
   return (
-    <main className="mx-auto w-full max-w-7xl px-6 py-10">
+    <main className="mx-auto w-full max-w-7xl px-4 py-6 sm:px-6 sm:py-10">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold tracking-tight">Karta</h1>
         <ViewToggle filters={filters} active="map" />

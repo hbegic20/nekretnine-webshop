@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 
-export function SignOutButton() {
+export function SignOutButton({ className }: { className?: string }) {
   const router = useRouter()
   const [pending, setPending] = useState(false)
 
@@ -27,7 +27,12 @@ export function SignOutButton() {
     <button
       onClick={signOut}
       disabled={pending}
-      className="text-sm underline underline-offset-4 opacity-70 hover:opacity-100 disabled:opacity-40"
+      // Two shapes: a quiet inline link in the desktop header, and a full-width
+      // row inside the mobile menu. Same behaviour either way.
+      className={
+        className ??
+        'text-sm text-muted transition-colors hover:text-foreground disabled:opacity-40'
+      }
     >
       Odjava
     </button>

@@ -19,7 +19,7 @@ export default async function AdminListingPage({ params }: { params: Promise<{ i
   if (!listing) notFound()
 
   return (
-    <main className="mx-auto w-full max-w-4xl px-6 py-12">
+    <main className="mx-auto w-full max-w-4xl px-4 py-8 sm:px-6 sm:py-12">
       <Link href="/admin" className="text-sm underline underline-offset-4 opacity-70 hover:opacity-100">
         ← Moderacija
       </Link>

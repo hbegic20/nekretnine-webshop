@@ -37,7 +37,7 @@ export function FavoriteButton({
   const [popped, setPopped] = useState(false)
 
   const shape = compact
-    ? 'inline-flex h-8 w-8 items-center justify-center rounded-full border border-white/40 ' +
+    ? 'inline-flex h-10 w-10 sm:h-8 sm:w-8 items-center justify-center rounded-full border border-white/40 ' +
       'bg-white/85 text-[#4b4b4b] shadow-sm backdrop-blur hover:bg-white ' +
       'dark:border-white/10 dark:bg-black/55 dark:text-white/80 dark:hover:bg-black/75'
     : 'inline-flex items-center gap-1.5 rounded-md border border-hairline-strong px-3 py-1.5 ' +

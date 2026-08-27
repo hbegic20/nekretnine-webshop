@@ -256,7 +256,21 @@ const publishSchema = z.object({
    */
   payment: z
     .object({
-      amount: z.number().int().min(0).max(100_000),
+      /*
+       * At least 1 KM, not 0.
+       *
+       * A payment row is the record that this person paid us. Writing one for
+       * zero says they paid nothing, which is a different fact from "we did
+       * not charge them" — and only the second is true of a free renewal or a
+       * favour. The way to record that is to omit `payment` entirely, which
+       * this schema allows and the admin form already does (its "Zabilježi
+       * uplatu" checkbox decides whether the object is sent at all).
+       *
+       * SPEC.md §4.9 states the rule; until now only the UI honoured it, so an
+       * amount of 0 sent by hand or by a cleared input field wrote a zero row
+       * into the ledger.
+       */
+      amount: z.number().int().min(1, 'Iznos uplate mora biti veći od nule').max(100_000),
       method: z.string().trim().min(2).max(40),
       paidAt: z.coerce.date(),
       note: z.string().trim().max(500).optional(),

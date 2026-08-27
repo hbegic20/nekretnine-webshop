@@ -88,6 +88,30 @@ describe('the lifecycle, end to end', () => {
     expect(await db.select().from(payments).where(eq(payments.listingId, listing.id))).toHaveLength(0)
   })
 
+  it('refuses to write a payment of zero into the ledger', async () => {
+    const seller = await createSeller()
+    const admin = await createAdmin()
+    const listing = await insertListing(seller.user.id, { status: 'PENDING' })
+
+    const response = await admin.client.post<ApiError>(`/api/listings/${listing.id}/publish`, {
+      payment: { amount: 0, method: 'gotovina', paidAt: new Date().toISOString() },
+    })
+
+    /*
+     * "They paid nothing" and "we did not charge them" are different facts,
+     * and only the second is true of a free renewal (SPEC.md §4.9). The way to
+     * say the second is to omit `payment` entirely — see the test above.
+     *
+     * The whole request fails rather than publishing without the payment: an
+     * admin who typed the wrong amount wants to fix it and try again, not to
+     * discover later that the listing went live with no record of the money.
+     */
+    expect(response.status).toBe(400)
+    expect(response.body.error.fields?.map((f) => f.path)).toContain('payment.amount')
+    expect(await db.select().from(payments).where(eq(payments.listingId, listing.id))).toHaveLength(0)
+    expect(await statusOf(listing.id)).toBe('PENDING')
+  })
+
   it('lets a seller renew an expired listing back into the queue', async () => {
     const seller = await createSeller()
     const listing = await insertListing(seller.user.id, { status: 'EXPIRED' })

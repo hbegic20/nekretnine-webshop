@@ -127,7 +127,7 @@ export function ModerationPanel({ listing }: { listing: AdminListingDetail }) {
             <div className="grid grid-cols-2 gap-3">
               <label className="block text-sm">
                 Iznos (KM)
-                <input name="amount" type="number" min={0} step={1} defaultValue={30} className={inputClass} />
+                <input name="amount" type="number" min={1} step={1} defaultValue={30} required className={inputClass} />
               </label>
               <label className="block text-sm">
                 Način plaćanja

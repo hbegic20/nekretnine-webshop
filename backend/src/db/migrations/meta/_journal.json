@@ -29,6 +29,13 @@
       "when": 1787233576914,
       "tag": "0003_image_mid_rendition",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1787233576915,
+      "tag": "0004_featured_listings",
+      "breakpoints": true
     }
   ]
 }

@@ -91,6 +91,20 @@ function assertCanEdit(listing: Listing, user: User): void {
  * are examples of things that belong in the database and not in a response.
  */
 
+/**
+ * Paid placement, evaluated against the clock rather than stored as a flag.
+ *
+ * Comparing here and in SQL means two places can disagree by however long a
+ * request takes — a listing whose placement expires mid-request could sort
+ * first and render without the ribbon. At a few hundred milliseconds and a
+ * date measured in days, that is a difference nobody can observe; the
+ * alternative is a boolean column and a job to turn it off, which is a thing
+ * that gets forgotten.
+ */
+function isFeatured(listing: Listing): boolean {
+  return listing.featuredUntil !== null && listing.featuredUntil.getTime() > Date.now()
+}
+
 function toImage(row: Image): ListingImage {
   return {
     id: row.id,
@@ -118,6 +132,7 @@ function toSummary(listing: Listing, cover: Image | null): ListingSummary {
     bedrooms: listing.bedrooms,
     bathrooms: listing.bathrooms,
     status: listing.status,
+    isFeatured: isFeatured(listing),
     coverImage: cover ? toImage(cover) : null,
     publishedAt: listing.publishedAt?.toISOString() ?? null,
     createdAt: listing.createdAt.toISOString(),
@@ -147,6 +162,8 @@ function toDetail(listing: Listing, imageRows: Image[], canSeePrivate: boolean):
     soldAt: listing.soldAt?.toISOString() ?? null,
     // A rejection reason is a private note between admin and seller.
     rejectionReason: canSeePrivate ? listing.rejectionReason : null,
+    // Same rule: the public sees *that* a listing is featured, not until when.
+    featuredUntil: canSeePrivate ? (listing.featuredUntil?.toISOString() ?? null) : null,
   }
 }
 
@@ -245,26 +262,49 @@ function orderFor(filters: ListingFilters): SQL[] {
     ? [asc(sql`(${listings.status} = 'SOLD')`)]
     : []
 
+  /*
+   * Featured rows first — but strictly after `soldLast`, and that order is the
+   * decision worth understanding.
+   *
+   * Sold-last wins, so a featured listing that has sold does not sit at the
+   * top of the page advertising something nobody can buy. Someone paid for
+   * that placement, and the honest reading of what they bought is prominence
+   * among things a buyer can act on.
+   *
+   * `now()` is Postgres's clock, matching the expiry job, so placement runs
+   * out on the database's time rather than on whichever server answered.
+   *
+   * Note there is no cap here. Featured placement only means anything while
+   * most listings are not featured; the day half the first page is gold it has
+   * stopped working. That is a selling decision rather than a query one at
+   * this size, and it belongs with the admin who sets it — but if the queue
+   * ever gets away from us, this is the place a limit would go.
+   */
+  const featuredFirst = [
+    desc(sql`(${listings.featuredUntil} is not null and ${listings.featuredUntil} > now())`),
+  ]
+
   switch (filters.sort) {
     case 'price_asc':
-      return [...soldLast, asc(listings.price), tiebreak]
+      return [...soldLast, ...featuredFirst, asc(listings.price), tiebreak]
     case 'price_desc':
-      return [...soldLast, desc(listings.price), tiebreak]
+      return [...soldLast, ...featuredFirst, desc(listings.price), tiebreak]
     case 'relevance':
       if (filters.q) {
         // ts_rank scores how well the row matches: more of the search terms,
         // occurring more often, scores higher.
         return [
           ...soldLast,
+          ...featuredFirst,
           desc(sql`ts_rank(${listings.searchVector}, plainto_tsquery('simple', f_unaccent(${filters.q})))`),
           desc(listings.publishedAt),
           tiebreak,
         ]
       }
-      return [...soldLast, desc(listings.publishedAt), tiebreak]
+      return [...soldLast, ...featuredFirst, desc(listings.publishedAt), tiebreak]
     case 'newest':
     default:
-      return [...soldLast, desc(listings.publishedAt), tiebreak]
+      return [...soldLast, ...featuredFirst, desc(listings.publishedAt), tiebreak]
   }
 }
 
@@ -541,7 +581,7 @@ export async function transitionListing(
   user: User,
   id: string,
   to: ListingStatus,
-  options: { expiryDays?: number; rejectionReason?: string } = {},
+  options: { expiryDays?: number; rejectionReason?: string; featuredDays?: number } = {},
 ): Promise<Listing> {
   const current = await getListingRow(id)
 
@@ -566,6 +606,17 @@ export async function transitionListing(
       now.getTime() + (options.expiryDays ?? DEFAULT_EXPIRY_DAYS) * 24 * 60 * 60 * 1000,
     )
     patch.rejectionReason = null
+
+    /*
+     * Paid placement, if the seller bought it. Left alone when they did not,
+     * rather than cleared — a listing being re-published after an edit keeps
+     * whatever placement it still has, because the seller paid for a period of
+     * time and a round trip through the moderation queue should not consume
+     * it.
+     */
+    if (options.featuredDays !== undefined) {
+      patch.featuredUntil = new Date(now.getTime() + options.featuredDays * 24 * 60 * 60 * 1000)
+    }
   }
   if (to === 'REJECTED') patch.rejectionReason = options.rejectionReason ?? null
   if (to === 'SOLD') patch.soldAt = now

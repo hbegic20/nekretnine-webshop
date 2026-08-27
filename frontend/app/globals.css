@@ -36,6 +36,17 @@
   --accent-ink: #0c4a50;
   --on-accent: #ffffff;
 
+  /*
+   * Paid placement. Deliberately neither the accent nor a status colour: the
+   * accent means "this site", the semantic colours below mean "this listing is
+   * in that state", and this means "someone paid to be seen". Three jobs,
+   * three hues — reusing one for another is how a page stops being readable at
+   * a glance.
+   */
+  --featured: #9a6b12;
+  --featured-soft: #f8f0dc;
+  --on-featured: #ffffff;
+
   /* Status. Separate from the accent on purpose — semantic colour that also
      means something must not be confused with brand colour that does not. */
   --ok: #2f6b46;
@@ -82,6 +93,10 @@
     --accent-ink: #7fd0cb;
     --on-accent: #06201f;
 
+    --featured: #d9a54a;
+    --featured-soft: #241d10;
+    --on-featured: #1d1607;
+
     --ok: #74c69a;
     --ok-soft: #12241a;
     --warn: #d9a24a;
@@ -113,6 +128,10 @@
   --accent-soft: #122926;
   --accent-ink: #7fd0cb;
   --on-accent: #06201f;
+
+  --featured: #d9a54a;
+  --featured-soft: #241d10;
+  --on-featured: #1d1607;
 
   --ok: #74c69a;
   --ok-soft: #12241a;
@@ -164,6 +183,10 @@
   --color-accent-soft: var(--accent-soft);
   --color-accent-ink: var(--accent-ink);
   --color-on-accent: var(--on-accent);
+
+  --color-featured: var(--featured);
+  --color-featured-soft: var(--featured-soft);
+  --color-on-featured: var(--on-featured);
 
   --color-ok: var(--ok);
   --color-ok-soft: var(--ok-soft);

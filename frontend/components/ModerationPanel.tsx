@@ -19,6 +19,14 @@ export function ModerationPanel({ listing }: { listing: AdminListingDetail }) {
   const [error, setError] = useState<string | null>(null)
   const [pending, setPending] = useState<string | null>(null)
   const [recordPayment, setRecordPayment] = useState(true)
+  /*
+   * Off by default, and that default is the feature working.
+   *
+   * Featured placement is worth something only while most listings do not have
+   * it. A checkbox that starts ticked would make "izdvojeno" the norm within a
+   * month, and a page where everything is highlighted highlights nothing.
+   */
+  const [feature, setFeature] = useState(false)
 
   const canPublish = listing.status === 'PENDING'
   const canReject = listing.status === 'PENDING'
@@ -50,12 +58,16 @@ export function ModerationPanel({ listing }: { listing: AdminListingDetail }) {
     const f = new FormData(event.currentTarget)
 
     const expiryDays = Number(f.get('expiryDays') ?? DEFAULT_EXPIRY_DAYS)
+    const featuredDays = Number(f.get('featuredDays') ?? 14)
     const amount = Number(f.get('amount') ?? 0)
 
     await post(
       'publish',
       {
         expiryDays,
+        // Omitted entirely when the box is unticked — the API treats absence as
+        // "not featured" and leaves any existing placement alone.
+        ...(feature ? { featuredDays } : {}),
         /*
          * The payment is only sent when it was actually taken. An amount of 0
          * recorded as a payment would be a lie in the ledger — "they paid
@@ -112,6 +124,33 @@ export function ModerationPanel({ listing }: { listing: AdminListingDetail }) {
               className={inputClass}
             />
           </label>
+
+          <label className="flex items-center gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={feature}
+              onChange={(e) => setFeature(e.target.checked)}
+              className="h-4 w-4"
+            />
+            Izdvoji oglas
+          </label>
+
+          {feature && (
+            <label className="block text-sm">
+              Izdvojeno (dana)
+              <input
+                name="featuredDays"
+                type="number"
+                min={1}
+                max={365}
+                defaultValue={14}
+                className={inputClass}
+              />
+              <span className="mt-1 block text-xs text-muted">
+                Oglas se prikazuje na vrhu liste i ima posebnu oznaku.
+              </span>
+            </label>
+          )}
 
           <label className="flex items-center gap-2 text-sm">
             <input

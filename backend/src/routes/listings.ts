@@ -250,6 +250,16 @@ listingsRouter.post('/:id/sold', requireAuth, async (req, res) => {
 const publishSchema = z.object({
   expiryDays: z.number().int().min(1).max(365).optional(),
   /**
+   * "Izdvojeni oglas" — paid placement, in days from now.
+   *
+   * Capped at the expiry maximum for the obvious reason: placement on a
+   * listing that has come down is placement nobody sees. Absent means the
+   * seller did not buy it, which is the common case and must stay the
+   * default — the value of featuring anything is that most things are not
+   * featured.
+   */
+  featuredDays: z.number().int().min(1).max(365).optional(),
+  /**
    * The offline payment, recorded at the moment of approval (SPEC.md §4.9).
    * Optional so a listing can be published without one — a free renewal, a
    * favour — but the normal path records it.
@@ -286,6 +296,7 @@ listingsRouter.post('/:id/publish', requireAuth, requireAdmin, async (req, res) 
 
   const listing = await transitionListing(admin, id, 'PUBLISHED', {
     ...(body.expiryDays !== undefined ? { expiryDays: body.expiryDays } : {}),
+    ...(body.featuredDays !== undefined ? { featuredDays: body.featuredDays } : {}),
   })
 
   if (body.payment) {

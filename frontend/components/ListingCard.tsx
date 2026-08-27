@@ -51,9 +51,18 @@ export function ListingCard({
 
       <Link
         href={`/oglas/${listing.id}`}
-        className="block overflow-hidden rounded-card border border-hairline bg-surface shadow-[var(--shadow-card)]
-                   transition duration-200 hover:-translate-y-[3px] hover:border-hairline-strong
-                   hover:shadow-[var(--shadow-lift)]"
+        /*
+         * Featured cards get a border, not a different background. A tinted
+         * card would make the photograph — the thing that actually sells the
+         * listing — sit on a coloured field, and the whole point of paying is
+         * that your photo is the one people look at.
+         */
+        className={`block overflow-hidden rounded-card bg-surface shadow-[var(--shadow-card)]
+                    transition duration-200 hover:-translate-y-[3px] hover:shadow-[var(--shadow-lift)] ${
+                      listing.isFeatured
+                        ? 'border-2 border-featured/60 hover:border-featured'
+                        : 'border border-hairline hover:border-hairline-strong'
+                    }`}
       >
         <div className="relative aspect-[4/3] overflow-hidden bg-sunken">
           {listing.coverImage ? (
@@ -97,10 +106,23 @@ export function ListingCard({
             </div>
           )}
 
-          {isNew(listing.publishedAt) && listing.status === 'PUBLISHED' && (
-            <span className="absolute left-2.5 top-2.5 rounded-sm bg-accent px-1.5 py-0.5 text-[11px] font-semibold text-on-accent">
-              Novo
+          {/*
+            * One badge, not two. A card carrying both "Izdvojeno" and "Novo"
+            * spends its most valuable corner on decoration — and a featured
+            * listing is new often enough that the pair would be common.
+            * Featured wins because somebody paid for it.
+            */}
+          {listing.isFeatured ? (
+            <span className="absolute left-2.5 top-2.5 rounded-sm bg-featured px-1.5 py-0.5 text-[11px] font-semibold text-on-featured">
+              Izdvojeno
             </span>
+          ) : (
+            isNew(listing.publishedAt) &&
+            listing.status === 'PUBLISHED' && (
+              <span className="absolute left-2.5 top-2.5 rounded-sm bg-accent px-1.5 py-0.5 text-[11px] font-semibold text-on-accent">
+                Novo
+              </span>
+            )
           )}
         </div>
 

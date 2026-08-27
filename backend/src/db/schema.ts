@@ -165,6 +165,15 @@ export const listings = pgTable(
     rejectionReason: text('rejection_reason'),
 
     /**
+     * Paid placement, until this moment. Null means never featured.
+     *
+     * A date rather than a boolean so nothing has to switch it off — see the
+     * note in migration 0004. It is set by an admin at approval, alongside the
+     * payment that bought it.
+     */
+    featuredUntil: timestamp('featured_until', { withTimezone: true }),
+
+    /**
      * The full-text search index, maintained by Postgres itself.
      *
      * A GENERATED column is recomputed on every insert and update, so it can
@@ -227,6 +236,11 @@ export const listings = pgTable(
     index('listings_status_lat_lng_idx').on(t.status, t.lat, t.lng),
     // The scheduled expiry job scans for published listings past their date.
     index('listings_expires_at_idx').on(t.expiresAt),
+    // Featured rows sort first on the public list. Partial: rows that were
+    // never featured are the overwhelming majority and do not belong here.
+    index('listings_featured_until_idx')
+      .on(t.featuredUntil)
+      .where(sql`featured_until is not null`),
     /*
      * GIN, not the default btree. A btree index answers "is this column equal
      * to X"; a tsvector holds many words per row and the question is "does it

@@ -1,7 +1,19 @@
 import { describe, expect, it } from 'vitest'
-import { LISTINGS_PER_PAGE, type MapPin, type Paginated, type ListingSummary } from 'shared'
+import {
+  LISTINGS_PER_PAGE,
+  type ListingDetail,
+  type ListingSummary,
+  type MapPin,
+  type Paginated,
+} from 'shared'
 import { api } from '../test/api.js'
-import { createSeller, daysAgo, insertListing, publishedListing } from '../test/factories.js'
+import {
+  createSeller,
+  daysAgo,
+  daysFromNow,
+  insertListing,
+  publishedListing,
+} from '../test/factories.js'
 import type { User } from '../db/schema.js'
 
 /**
@@ -212,6 +224,73 @@ describe('sorting', () => {
     const response = await api().get<Page>('/api/listings')
 
     expect(response.body.items.map((i) => i.id)).toEqual([recent.id, old.id])
+  })
+})
+
+describe('featured listings', () => {
+  it('sort first, whatever the chosen order', async () => {
+    const owner = await seller()
+    const cheapest = await publishedListing(owner.id, { price: 50_000, publishedAt: daysAgo(1) })
+    const featured = await publishedListing(owner.id, {
+      price: 300_000,
+      publishedAt: daysAgo(30),
+      featuredUntil: daysFromNow(14),
+    })
+
+    // Both the newest and the cheapest sorts would otherwise bury it: it is
+    // the oldest listing and the most expensive one.
+    const newest = await api().get<Page>('/api/listings')
+    const cheapFirst = await api().get<Page>('/api/listings?sort=price_asc')
+
+    expect(newest.body.items[0]?.id).toBe(featured.id)
+    expect(cheapFirst.body.items[0]?.id).toBe(featured.id)
+    expect(cheapFirst.body.items[1]?.id).toBe(cheapest.id)
+  })
+
+  it('stop sorting first once the placement runs out', async () => {
+    const owner = await seller()
+    const recent = await publishedListing(owner.id, { publishedAt: daysAgo(1) })
+    const expired = await publishedListing(owner.id, {
+      publishedAt: daysAgo(30),
+      // Paid for, and over. The row keeps the date as a record of what was
+      // bought; the sort must ignore it.
+      featuredUntil: daysAgo(1),
+    })
+
+    const response = await api().get<Page>('/api/listings')
+
+    expect(response.body.items.map((i) => i.id)).toEqual([recent.id, expired.id])
+    expect(response.body.items.every((i) => i.isFeatured === false)).toBe(true)
+  })
+
+  it('are flagged for the card, without leaking the date to the public', async () => {
+    const owner = await seller()
+    const listing = await publishedListing(owner.id, { featuredUntil: daysFromNow(7) })
+
+    const list = await api().get<Page>('/api/listings')
+    expect(list.body.items[0]?.isFeatured).toBe(true)
+
+    const anonymous = await api().get<{ listing: ListingDetail }>(`/api/listings/${listing.id}`)
+    expect(anonymous.body.listing.isFeatured).toBe(true)
+    // Same rule as the street address: the public sees that it is featured,
+    // not the commercial detail of until when.
+    expect(anonymous.body.listing.featuredUntil).toBeNull()
+  })
+
+  it('still sort behind availability — a sold one does not lead the page', async () => {
+    const owner = await seller()
+    const available = await publishedListing(owner.id, { price: 200_000 })
+    const soldButFeatured = await insertListing(owner.id, {
+      status: 'SOLD',
+      soldAt: new Date(),
+      price: 100_000,
+      featuredUntil: daysFromNow(14),
+    })
+
+    const response = await api().get<Page>('/api/listings?includeSold=1&sort=price_asc')
+
+    // Someone paid for prominence among things a buyer can actually act on.
+    expect(response.body.items.map((i) => i.id)).toEqual([available.id, soldButFeatured.id])
   })
 })
 

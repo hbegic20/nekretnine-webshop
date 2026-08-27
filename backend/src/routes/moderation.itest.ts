@@ -7,6 +7,7 @@ import { api, type ApiError } from '../test/api.js'
 import {
   createAdmin,
   createSeller,
+  daysFromNow,
   insertListing,
   listingInput,
   publishedListing,
@@ -110,6 +111,56 @@ describe('the lifecycle, end to end', () => {
     expect(response.body.error.fields?.map((f) => f.path)).toContain('payment.amount')
     expect(await db.select().from(payments).where(eq(payments.listingId, listing.id))).toHaveLength(0)
     expect(await statusOf(listing.id)).toBe('PENDING')
+  })
+
+  it('sets paid placement when the admin sells it, and leaves it off when not', async () => {
+    const seller = await createSeller()
+    const admin = await createAdmin()
+    const plain = await insertListing(seller.user.id, { status: 'PENDING' })
+    const promoted = await insertListing(seller.user.id, { status: 'PENDING' })
+
+    await admin.client.post(`/api/listings/${plain.id}/publish`, {})
+    await admin.client.post(`/api/listings/${promoted.id}/publish`, {
+      featuredDays: 14,
+      payment: { amount: 40, method: 'gotovina', paidAt: new Date().toISOString() },
+    })
+
+    // Absent means not featured, and that has to be the default: placement is
+    // worth something only while most listings do not have it.
+    expect(await featuredDaysLeft(plain.id)).toBeNull()
+    expect(await featuredDaysLeft(promoted.id)).toBe(14)
+  })
+
+  it('keeps placement through a round trip to the queue', async () => {
+    const seller = await createSeller()
+    const admin = await createAdmin()
+    const listing = await insertListing(seller.user.id, {
+      status: 'PUBLISHED',
+      featuredUntil: daysFromNow(10),
+    })
+
+    // The seller edits something that is not the price, which sends it back
+    // for review, and the admin approves it again without re-selling placement.
+    await seller.client.patch(`/api/listings/${listing.id}`, {
+      title: 'Trosoban stan, ažuriran opis i slike',
+    })
+    await admin.client.post(`/api/listings/${listing.id}/publish`, {})
+
+    // They paid for a fortnight, not for a fortnight minus however long
+    // moderation took.
+    expect(await featuredDaysLeft(listing.id)).toBe(10)
+  })
+
+  it('refuses to let a seller feature their own listing', async () => {
+    const seller = await createSeller()
+    const listing = await insertListing(seller.user.id, { status: 'PENDING' })
+
+    const response = await seller.client.post(`/api/listings/${listing.id}/publish`, {
+      featuredDays: 30,
+    })
+
+    expect(response.status).toBe(403)
+    expect(await featuredDaysLeft(listing.id)).toBeNull()
   })
 
   it('lets a seller renew an expired listing back into the queue', async () => {
@@ -370,6 +421,13 @@ describe('a sold listing', () => {
 async function statusOf(id: string): Promise<string | undefined> {
   const [row] = await db.select().from(listings).where(eq(listings.id, id))
   return row?.status
+}
+
+/** Whole days of paid placement left, or null when there is none. */
+async function featuredDaysLeft(id: string): Promise<number | null> {
+  const [row] = await db.select().from(listings).where(eq(listings.id, id))
+  if (!row?.featuredUntil) return null
+  return Math.round((row.featuredUntil.getTime() - Date.now()) / DAY_MS)
 }
 
 async function daysUntilExpiry(id: string): Promise<number> {

@@ -43,6 +43,14 @@ export interface ListingSummary {
   bedrooms: number | null
   bathrooms: number | null
   status: ListingStatus
+  /**
+   * Paid placement, still running.
+   *
+   * A boolean rather than the date, because that is the whole question a card
+   * has: the expiry itself is nobody's business but the owner's and the
+   * admin's, and it is on ListingDetail for them.
+   */
+  isFeatured: boolean
   coverImage: ListingImage | null
   publishedAt: string | null
   createdAt: string
@@ -83,6 +91,8 @@ export interface ListingDetail extends ListingSummary {
   soldAt: string | null
   /** Only ever sent to the listing's owner or an admin. */
   rejectionReason: string | null
+  /** When paid placement runs out. Owner and admin only, like the address. */
+  featuredUntil: string | null
 }
 
 /** What a create or edit form submits. */

@@ -1,7 +1,24 @@
-import { defineConfig } from 'vitest/config'
+import { configDefaults, defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
+    /**
+     * Unit tests only — pure functions, no infrastructure, milliseconds.
+     *
+     * The integration suite lives in `*.itest.ts` files and runs from
+     * `vitest.integration.config.ts` (`npm run test:api`), because it needs a
+     * Postgres to connect to. Excluded by name rather than left to the default
+     * `*.test.ts` pattern not matching: relying on that is relying on nobody
+     * ever naming a file `foo.test.ts` that talks to a database.
+     *
+     * `dist` is excluded because `npm run build` compiles the test files too,
+     * and vitest was happily running both copies — every unit test twice, the
+     * second time against whatever the last build happened to contain. It
+     * passed, which is why nobody noticed: a stale compiled test that no
+     * longer matches its source is a test that lies in either direction.
+     */
+    exclude: [...configDefaults.exclude, 'dist/**', '**/*.itest.ts'],
+
     /**
      * Environment for tests, so they do not depend on a .env file existing.
      *

@@ -27,6 +27,29 @@ jobs:
   check:
     name: Lint · typecheck · test · build
     runs-on: ubuntu-latest
+
+    # The integration suite talks to a real Postgres, so CI runs one. Same
+    # major version as docker-compose.yml and as production: a suite that
+    # passes against a different version than it will deploy against is
+    # testing something other than what ships.
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_USER: nekretnine
+          POSTGRES_PASSWORD: nekretnine
+          POSTGRES_DB: nekretnine
+        ports:
+          - 5432:5432
+        # Without this the first connection races the container's startup, and
+        # the job fails roughly one run in three — the worst kind of red build,
+        # because re-running it makes it go away.
+        options: >-
+          --health-cmd "pg_isready -U nekretnine"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
     steps:
       - uses: actions/checkout@v4
 
@@ -55,6 +78,15 @@ jobs:
 
       - name: Test
         run: npm test
+
+      # The other half: the real app, over HTTP, against the Postgres service
+      # above. It creates its own database (nekretnine_test) and applies the
+      # migration files, so a broken migration fails here rather than on deploy
+      # day.
+      - name: Integration test
+        run: npm run test:api
+        env:
+          TEST_DATABASE_URL: postgres://nekretnine:nekretnine@localhost:5432/nekretnine_test
 
       # Catches the errors that only appear at build time — a Server Component
       # importing something client-only, a type that only the Next compiler

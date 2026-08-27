@@ -1,0 +1,241 @@
+# Bugojno Nekretnine
+
+A property listings site for seven towns in central Bosnia — Bugojno, Gornji
+Vakuf-Uskoplje, Donji Vakuf, Jajce, Kupres, Travnik and Novi Travnik.
+
+Sellers register and submit a listing. An admin reviews it, records the payment
+that happened offline (bank transfer or cash), and publishes it with an expiry
+date. Buyers browse, filter, save and enquire. **Money never moves through the
+app** — the payments table is a ledger of what an admin wrote down, not a
+payment system.
+
+Three documents describe the project and are worth reading in this order:
+
+| File | What it is |
+|---|---|
+| [SPEC.md](SPEC.md) | The agreed feature scope. What is in v1 and what is deliberately not. |
+| [ARCHITECTURE.md](ARCHITECTURE.md) | Every technical decision and the reasoning behind it. |
+| [CLAUDE.md](CLAUDE.md) | Working conventions for this repo. |
+
+---
+
+## Running it locally
+
+**You need:** Node 20 or newer (CI and the Docker images run 24) and Docker
+Desktop, running.
+
+```bash
+npm install
+cp backend/.env.example backend/.env
+npm run dev
+```
+
+That is the whole setup. `npm run dev` does the rest:
+
+1. starts the Postgres container and waits until it accepts connections
+2. applies any migrations that have not run yet
+3. seeds test data **only if the database is empty** — it will not overwrite
+   listings you have been working on
+4. runs the API and the frontend together, with output labelled `[api]` and
+   `[web]`
+
+| | |
+|---|---|
+| Frontend | http://localhost:3000 |
+| API | http://localhost:4000 |
+| Health check | http://localhost:4000/health/ready |
+
+**Ctrl-C stops both servers and leaves Postgres running.** Stop that too with
+`npm run db:down` when you are finished for the day.
+
+`frontend/.env.local` is optional in development — `next.config.ts` falls back
+to `http://localhost:4000`. Copy `frontend/.env.example` to `.env.local` only
+if you need to point the frontend somewhere else.
+
+### Seeded accounts
+
+Both use the password `lozinka123`:
+
+| Email | Role |
+|---|---|
+| `admin@nekretnine.test` | Admin — the moderation queue at `/admin` |
+| `prodavac@nekretnine.test` | Seller — owns the ten sample listings |
+
+Admins are made by promoting an existing user, never by signing up. There is no
+public admin registration and there never will be (SPEC §2).
+
+---
+
+## What is built
+
+Everything through Phase 6. The lifecycle at the centre of it is
+`DRAFT → PENDING → PUBLISHED → EXPIRED/SOLD`, with `REJECTED` as the side
+branch that admin takedowns also land in.
+
+**Auth** — email and password, argon2id hashing, sessions stored in Postgres
+behind an HttpOnly cookie. Not JWT: sessions can be revoked, which is the whole
+point. Each login gets its own session row, so signing out on your phone leaves
+your laptop alone.
+
+**Listings** — full CRUD for sellers over their own rows, with the moderation
+rules enforced server-side. Changing the **price** of a live listing keeps it
+live; changing anything else sends it back to the queue, which closes the
+bait-and-switch route. Deleting is soft: the row keeps a `deleted_at` stamp so
+its payment and inquiry history survive.
+
+**Search** — town, property type, transaction type, price range, bedrooms,
+bathrooms, size range, and free-text keyword search using a Postgres GIN index
+with `unaccent`, so "kuca" typed on an English keyboard matches "kuća". Filters
+live in the URL, so a search can be shared or bookmarked.
+
+**Map** — every match plotted with Leaflet, unpaginated. Coordinates come from
+the seller dropping a pin during submission; there is no geocoding service.
+
+**Detail pages** — server-rendered for SEO, with an image gallery, a small map,
+contact details and an inquiry form. The street address is never shown publicly.
+
+**Favorites** — `PUT /api/favorites/:id`, idempotent so a double click is not
+an error. A saved listing that later expires or sells stays in the list, marked
+unavailable.
+
+**Inquiries** — stored in the database *before* the email is sent, so a
+delivery failure loses a notification rather than a buyer's message. Honeypot
+field, rate limited.
+
+**Image uploads** — multiple per listing, resized and thumbnailed with sharp,
+EXIF stripped, behind a storage adapter (disk in development, Cloudflare R2 in
+production).
+
+**Admin moderation** — the queue at `/admin`, a tab per status with live
+counts. PENDING is ordered oldest first, because a queue is worked from the
+front. The review page shows the listing as a buyer sees it, plus the owner's
+contact details, the payment ledger, and how many inquiries and saves it has.
+
+**Scheduled expiry** — an hourly job moves listings past their date to EXPIRED
+and emails the seller, because a listing that vanishes silently looks like the
+site lost it.
+
+**Docker and CI** — the whole stack runs in containers, and GitHub Actions
+lints, typechecks, tests and builds every pull request, then publishes both
+images to GHCR on merge.
+
+---
+
+## Everyday commands
+
+All of these run from the repository root.
+
+| Command | What it does |
+|---|---|
+| `npm run dev` | The one above. Postgres + migrate + seed + both dev servers. |
+| `npm test` | Unit tests. Fast, no database needed. |
+| `npm run test:api` | Integration tests — the real API over HTTP against Postgres. |
+| `npm run lint` | ESLint across all three workspaces. |
+| `npm run typecheck` | `tsc --noEmit` across all three workspaces. |
+| `npm run build` | Builds shared, backend and frontend, in that order. |
+| `npm run db:up` / `db:down` | Start or stop just the Postgres container. |
+| `npm run db:psql` | A psql shell inside the container. |
+| `npm run db:generate` | Generate a migration from schema changes. |
+| `npm run db:migrate` | Apply pending migrations. |
+| `npm run db:seed` | Re-seed. Deletes the seed seller's listings first. |
+| `npm run job:expire` | Run the expiry job once, by hand. |
+| `npm run stack:up` / `stack:down` / `stack:logs` | The whole thing in containers. |
+
+**Never run `npm run dev` and `npm run stack:up` at the same time** — they
+fight over ports 3000 and 4000. The dev script checks for this and tells you.
+
+---
+
+## Tests
+
+Two suites, split because they need different things.
+
+```bash
+npm test          # unit — pure functions, milliseconds, no infrastructure
+npm run test:api  # integration — real HTTP, real Postgres, ~15 seconds
+```
+
+The integration suite creates its own database (`nekretnine_test`) on the
+Postgres you already run for development, applies the real migration files to
+it, and truncates every table between test cases. Your development data is
+never touched. Set `TEST_DATABASE_URL` if you want it somewhere else.
+
+It covers auth and sessions, the listing lifecycle and every moderation rule,
+search and filters against real SQL, favorites, inquiries, the admin queue, and
+the expiry job. Both suites run in CI on every pull request.
+
+Test files sit next to the code they test: `*.test.ts` for unit,
+`*.itest.ts` for integration. The harness lives in `backend/src/test/`.
+
+---
+
+## Project layout
+
+```
+frontend/          Next.js 16 App Router, React 19, Tailwind v4
+  app/             Pages — Bosnian URLs (/oglas, /mapa, /moji-oglasi, /sacuvano)
+  components/      Form, card, gallery and moderation components
+  lib/api.ts       The server-vs-browser fetch rules
+backend/           Express 5 + TypeScript
+  src/routes/      One file per resource
+  src/services/    Business rules — the lifecycle lives in services/listings.ts
+  src/db/          Drizzle schema and generated migrations
+  src/storage/     Disk in dev, S3/R2 in prod, behind one interface
+  src/mail/        Console in dev, SMTP in prod, same idea
+  src/test/        Integration test harness
+shared/            Types and constants imported by BOTH sides
+infra/             docker-compose.yml and the two Dockerfiles
+scripts/dev.sh     What npm run dev actually runs
+```
+
+`shared/` is the reason the town dropdown and the database enum cannot drift
+apart: they are built from the same array.
+
+---
+
+## Changing the database
+
+Schema changes go through migrations, always. Never edit tables by hand in
+psql — the migration files are the source of truth, and a hand-edit makes them
+a lie.
+
+```bash
+# 1. edit backend/src/db/schema.ts
+npm run db:generate   # writes a new SQL file under src/db/migrations
+# 2. read the generated SQL — it is not always what you meant
+npm run db:migrate    # apply it
+```
+
+---
+
+## When something goes wrong
+
+**"port 3000 is already in use"** — the container stack is running. Stop it with
+`npm run stack:down`, or find whatever else is listening with
+`lsof -nP -iTCP:3000 -sTCP:LISTEN`.
+
+**"Docker is not running"** — start Docker Desktop and try again.
+
+**"Could not reach Postgres"** from the tests — `npm run db:up`.
+
+**The database is in a strange state and you want a clean one:**
+
+```bash
+docker compose -f infra/docker-compose.yml down -v   # deletes the volume too
+npm run dev                                          # recreates and re-seeds
+```
+
+**Uploaded images disappeared** — `backend/uploads/` is gitignored and local
+only. In production the app refuses to start with `STORAGE_DRIVER=disk` at all,
+because container filesystems are wiped on every deploy.
+
+---
+
+## Not built yet
+
+- **Deployment (Phase 7).** Nothing is hosted. The plan is the frontend on
+  Vercel, the backend image on Render or Railway, Postgres on Neon, images on
+  Cloudflare R2 and email through Resend — all free tiers at this scale.
+- Integration tests for the image upload route.
+- Frontend tests.
+- Email verification and password reset, deferred to v1.1 (SPEC §4.1).

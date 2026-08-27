@@ -68,7 +68,7 @@ export default async function AdminListingPage({ params }: { params: Promise<{ i
         </div>
 
         <aside className="space-y-6">
-          <section className="rounded-lg border border-black/10 dark:border-white/10 p-4">
+          <section className="rounded-lg border border-hairline p-4">
             <h2 className="text-sm font-medium">Prodavac</h2>
             <p className="mt-2 text-sm">{listing.owner.name}</p>
             <p className="text-sm opacity-70">{listing.owner.email}</p>
@@ -83,7 +83,7 @@ export default async function AdminListingPage({ params }: { params: Promise<{ i
 
           <ModerationPanel listing={listing} />
 
-          <section className="rounded-lg border border-black/10 dark:border-white/10 p-4">
+          <section className="rounded-lg border border-hairline p-4">
             <h2 className="text-sm font-medium">Uplate</h2>
             {listing.payments.length === 0 ? (
               <p className="mt-2 text-sm opacity-60">Nema zabilježenih uplata.</p>

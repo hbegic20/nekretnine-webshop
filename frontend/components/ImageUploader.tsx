@@ -84,7 +84,7 @@ export function ImageUploader({
   }
 
   return (
-    <section className="space-y-3 rounded-md border border-black/10 dark:border-white/10 p-4">
+    <section className="space-y-3 rounded-md border border-hairline p-4">
       <h2 className="text-sm font-medium">Slike</h2>
 
       {isPublished && (

@@ -1,26 +1,225 @@
 @import "tailwindcss";
 
+/*
+ * ---------------------------------------------------------------------------
+ * Theme: "Vrbas"
+ * ---------------------------------------------------------------------------
+ * One accent against a considered neutral, which is what every property portal
+ * worth copying settles on. The accent is a deep teal rather than the expected
+ * corporate navy — trust without looking like a bank — and the neutrals carry a
+ * slight green bias so they read as chosen rather than as default grey.
+ *
+ * Everything is a token. Components never name a colour directly, so the whole
+ * palette can change here without touching a component, and light and dark
+ * cannot drift apart.
+ */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  /* Surfaces */
+  --paper: #fbfbf9;
+  --surface: #ffffff;
+  --surface-sunken: #f2f5f3;
+
+  /* Text */
+  --ink: #14201f;
+  --muted: #5d6b69;
+  --faint: #83918f;
+
+  /* Lines */
+  --hairline: #e2e6e4;
+  --hairline-strong: #cdd6d3;
+
+  /* Accent */
+  --accent: #0f5c63;
+  --accent-hover: #0c4a50;
+  --accent-soft: #e4efee;
+  --accent-ink: #0c4a50;
+  --on-accent: #ffffff;
+
+  /* Status. Separate from the accent on purpose — semantic colour that also
+     means something must not be confused with brand colour that does not. */
+  --ok: #2f6b46;
+  --ok-soft: #e6f1ea;
+  --warn: #8a5a12;
+  --warn-soft: #f8efdd;
+  --danger: #9b2c2c;
+  --danger-soft: #f8e6e3;
+  --info: #1f5183;
+  --info-soft: #e6eef6;
+
+  --radius: 10px;
+  --radius-sm: 6px;
+
+  --shadow-card: 0 1px 2px rgb(20 32 31 / 0.05);
+  --shadow-lift: 0 12px 28px -12px rgb(15 92 99 / 0.35);
 }
 
-@theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
-}
-
+/*
+ * Dark, twice.
+ *
+ * The media query covers everyone who never touched the toggle — which is most
+ * people, since "system" is the default and stamps no attribute at all. It is
+ * guarded by :not([data-theme="light"]) so that choosing light explicitly still
+ * wins on a dark OS. The attribute block then covers the toggle in the other
+ * direction.
+ */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
+  :root:not([data-theme="light"]) {
+    --paper: #0c1413;
+    --surface: #121d1c;
+    --surface-sunken: #0f1817;
+
+    --ink: #e6edeb;
+    --muted: #93a5a2;
+    --faint: #74857f;
+
+    --hairline: #1f2f2d;
+    --hairline-strong: #2c403d;
+
+    --accent: #4fb3ae;
+    --accent-hover: #6cc7c2;
+    --accent-soft: #122926;
+    --accent-ink: #7fd0cb;
+    --on-accent: #06201f;
+
+    --ok: #74c69a;
+    --ok-soft: #12241a;
+    --warn: #d9a24a;
+    --warn-soft: #241c10;
+    --danger: #e08079;
+    --danger-soft: #2a1615;
+    --info: #7fb0e0;
+    --info-soft: #111d29;
+
+    --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4);
+    --shadow-lift: 0 12px 28px -12px rgb(0 0 0 / 0.7);
   }
 }
 
+:root[data-theme="dark"] {
+  --paper: #0c1413;
+  --surface: #121d1c;
+  --surface-sunken: #0f1817;
+
+  --ink: #e6edeb;
+  --muted: #93a5a2;
+  --faint: #74857f;
+
+  --hairline: #1f2f2d;
+  --hairline-strong: #2c403d;
+
+  --accent: #4fb3ae;
+  --accent-hover: #6cc7c2;
+  --accent-soft: #122926;
+  --accent-ink: #7fd0cb;
+  --on-accent: #06201f;
+
+  --ok: #74c69a;
+  --ok-soft: #12241a;
+  --warn: #d9a24a;
+  --warn-soft: #241c10;
+  --danger: #e08079;
+  --danger-soft: #2a1615;
+  --info: #7fb0e0;
+  --info-soft: #111d29;
+
+  --shadow-card: 0 1px 2px rgb(0 0 0 / 0.4);
+  --shadow-lift: 0 12px 28px -12px rgb(0 0 0 / 0.7);
+}
+
+/*
+ * `dark:` has to answer to both mechanisms.
+ *
+ * Tailwind's built-in dark variant is the media query alone, which would leave
+ * every existing `dark:border-white/10` deaf to the toggle. This variant fires
+ * for an OS preference that has not been explicitly overridden, and for an
+ * explicit dark choice.
+ */
+@custom-variant dark {
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+  &:where([data-theme="dark"] *) {
+    @slot;
+  }
+}
+
+@theme inline {
+  /* `background` and `foreground` keep their names: they are used across every
+     component already written, and renaming them would be churn for nothing. */
+  --color-background: var(--paper);
+  --color-foreground: var(--ink);
+
+  --color-surface: var(--surface);
+  --color-sunken: var(--surface-sunken);
+  --color-muted: var(--muted);
+  --color-faint: var(--faint);
+  --color-hairline: var(--hairline);
+  --color-hairline-strong: var(--hairline-strong);
+
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-ink: var(--accent-ink);
+  --color-on-accent: var(--on-accent);
+
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+
+  --font-sans: var(--font-archivo);
+  --font-serif: var(--font-source-serif);
+
+  --radius-card: var(--radius);
+}
+
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--paper);
+  color: var(--ink);
+  /*
+   * This line used to read `font-family: Arial, Helvetica, sans-serif`, which
+   * silently overrode the webfont loaded in layout.tsx — the font was
+   * downloaded on every visit and then never used. Both faces are loaded with
+   * the latin-ext subset, without which č, ć, š, ž and đ fall back to a
+   * different font mid-word.
+   */
+  font-family: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+}
+
+/*
+ * One focus ring for the whole app, in the accent colour.
+ *
+ * SPEC.md §7 asks for keyboard navigation; until now what a focused control
+ * looked like was whatever the browser decided, which on a dark background is
+ * often nearly invisible. `:focus-visible` rather than `:focus` so a mouse
+ * click does not leave a ring behind.
+ */
+:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+  border-radius: 3px;
+}
+
+/* Prices, sizes and counts line up in columns; proportional digits make a
+   grid of cards look ragged. */
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
 }

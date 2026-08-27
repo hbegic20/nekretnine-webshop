@@ -32,7 +32,7 @@ export default async function HomePage({
   const pageHref = (page: number) => `/${listingFiltersToQuery({ ...filters, page })}`
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-6 py-12">
+    <main className="mx-auto w-full max-w-7xl px-6 py-10">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold tracking-tight">Oglasi</h1>
         <ViewToggle filters={filters} active="list" />
@@ -48,7 +48,7 @@ export default async function HomePage({
       </p>
 
       {items.length === 0 ? (
-        <div className="mt-6 rounded-lg border border-dashed border-black/15 dark:border-white/20 p-8 text-center">
+        <div className="mt-6 rounded-lg border border-dashed border-hairline-strong p-8 text-center">
           <p className="text-sm opacity-70">
             {activeCount > 0
               ? 'Nijedan oglas ne odgovara vašoj pretrazi.'
@@ -61,7 +61,7 @@ export default async function HomePage({
           )}
         </div>
       ) : (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {items.map((listing) => (
             <ListingCard key={listing.id} listing={listing} />
           ))}

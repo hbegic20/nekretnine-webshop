@@ -29,8 +29,9 @@ const SORT_LABELS: Record<string, string> = {
 }
 
 const fieldClass =
-  'w-full rounded-md border border-black/15 dark:border-white/20 bg-transparent px-3 py-2 text-sm ' +
-  'outline-none focus:border-black/40 dark:focus:border-white/50'
+  'w-full rounded-md border border-hairline bg-surface px-3 py-2 text-sm text-foreground ' +
+  'transition-colors placeholder:text-faint hover:border-hairline-strong ' +
+  'focus:border-accent focus:outline-none'
 
 /**
  * A real `<form method="get">`, enhanced rather than replaced.
@@ -89,7 +90,7 @@ export function SearchFilters({ filters }: { filters: ListingFilters }) {
       method="get"
       action="/"
       onSubmit={onSubmit}
-      className="rounded-lg border border-black/10 dark:border-white/10 p-4 space-y-3"
+      className="space-y-3 rounded-card border border-hairline bg-surface p-4 shadow-[var(--shadow-card)]"
     >
       <div className="flex gap-2">
         <input
@@ -103,7 +104,7 @@ export function SearchFilters({ filters }: { filters: ListingFilters }) {
         <button
           type="submit"
           disabled={pending}
-          className="shrink-0 rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
+          className="shrink-0 rounded-md bg-accent px-4 py-2 text-sm font-semibold text-on-accent transition-colors hover:bg-accent-hover disabled:opacity-50"
         >
           Traži
         </button>

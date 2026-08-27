@@ -18,14 +18,14 @@ export default async function SavedPage() {
   const gone = items.filter((i) => !i.available)
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-6 py-12">
+    <main className="mx-auto w-full max-w-7xl px-6 py-10">
       <h1 className="text-2xl font-semibold tracking-tight">Sačuvani oglasi</h1>
       <p className="mt-1 text-sm opacity-70">
         {items.length === 0 ? 'Nemate sačuvanih oglasa.' : listingsCountLabel(items.length)}
       </p>
 
       {items.length === 0 && (
-        <div className="mt-8 rounded-lg border border-dashed border-black/15 dark:border-white/20 p-8 text-center">
+        <div className="mt-8 rounded-lg border border-dashed border-hairline-strong p-8 text-center">
           <p className="text-sm opacity-70">
             Kliknite „Sačuvaj” na bilo kojem oglasu da ga dodate ovdje.
           </p>
@@ -36,7 +36,7 @@ export default async function SavedPage() {
       )}
 
       {available.length > 0 && (
-        <div className="mt-8 grid gap-4 sm:grid-cols-2">
+        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {available.map((listing) => (
             <ListingCard key={listing.id} listing={listing} />
           ))}
@@ -54,7 +54,7 @@ export default async function SavedPage() {
           <p className="mt-1 text-sm opacity-60">
             Ovi oglasi su prodani ili im je isteklo vrijeme objave.
           </p>
-          <div className="mt-4 grid gap-4 opacity-60 sm:grid-cols-2">
+          <div className="mt-4 grid gap-4 opacity-60 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {gone.map((listing) => (
               <ListingCard key={listing.id} listing={listing} showStatus />
             ))}

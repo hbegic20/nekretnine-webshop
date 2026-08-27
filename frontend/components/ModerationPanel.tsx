@@ -86,7 +86,7 @@ export function ModerationPanel({ listing }: { listing: AdminListingDetail }) {
   const today = new Date().toISOString().slice(0, 10)
 
   return (
-    <section className="space-y-5 rounded-lg border border-black/10 dark:border-white/10 p-4">
+    <section className="space-y-5 rounded-lg border border-hairline p-4">
       <h2 className="text-sm font-medium">Moderacija</h2>
 
       {error && <FormError message={error} />}

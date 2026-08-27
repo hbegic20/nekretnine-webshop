@@ -24,7 +24,7 @@ const LeafletMap = dynamic(() => import('./LeafletMap'), {
   ssr: false,
   loading: () => (
     <div
-      className="flex h-[70vh] w-full items-center justify-center rounded-lg border border-black/10 dark:border-white/10"
+      className="flex h-[70vh] w-full items-center justify-center rounded-lg border border-hairline"
       // Announced to screen readers, which otherwise get silence while the
       // map chunk downloads.
       role="status"

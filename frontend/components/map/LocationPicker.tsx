@@ -29,7 +29,7 @@ export function LocationPicker({
   const [position, setPosition] = useState(initial)
 
   return (
-    <fieldset className="space-y-2 rounded-md border border-black/10 dark:border-white/10 p-4">
+    <fieldset className="space-y-2 rounded-md border border-hairline p-4">
       <legend className="px-1 text-sm font-medium">Lokacija na karti</legend>
 
       <p className="text-sm opacity-70">
@@ -47,7 +47,7 @@ export function LocationPicker({
       <input type="hidden" name="lat" value={position?.lat ?? ''} />
       <input type="hidden" name="lng" value={position?.lng ?? ''} />
 
-      <div className="overflow-hidden rounded-md border border-black/10 dark:border-white/10">
+      <div className="overflow-hidden rounded-md border border-hairline">
         <ListingMap
           town={town}
           picker={{ value: position, onChange: setPosition }}

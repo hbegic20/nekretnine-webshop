@@ -113,7 +113,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
       {listing.lat !== null && listing.lng !== null && (
         <section className="mt-10">
           <h2 className="text-sm font-medium">Lokacija</h2>
-          <div className="mt-3 overflow-hidden rounded-lg border border-black/10 dark:border-white/10">
+          <div className="mt-3 overflow-hidden rounded-lg border border-hairline">
             {/* One pin, centred on the listing's own town. */}
             <ListingMap
               pins={[
@@ -134,7 +134,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
         </section>
       )}
 
-      <section className="mt-10 rounded-lg border border-black/10 dark:border-white/10 p-4">
+      <section className="mt-10 rounded-lg border border-hairline p-4">
         <h2 className="text-sm font-medium">Kontakt</h2>
         <p className="mt-2 text-sm">{listing.contactName}</p>
         <p className="text-sm">
@@ -150,7 +150,7 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
       {/* Only a live listing can be enquired about — the API enforces the same
           rule, so this is presentation, not permission. */}
       {(listing.status === 'PUBLISHED' || listing.status === 'SOLD') && (
-        <section className="mt-8 rounded-lg border border-black/10 dark:border-white/10 p-4">
+        <section className="mt-8 rounded-lg border border-hairline p-4">
           <h2 className="text-sm font-medium">Pošaljite upit</h2>
           <p className="mt-1 mb-4 text-sm opacity-70">
             Poruka ide direktno prodavcu. Vaš email vidi samo on.

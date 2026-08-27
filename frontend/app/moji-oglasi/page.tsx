@@ -17,7 +17,7 @@ export default async function MyListingsPage() {
   const listings = await fetchOwnListings()
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-6 py-12">
+    <main className="mx-auto w-full max-w-7xl px-6 py-10">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-semibold tracking-tight">Moji oglasi</h1>
         <Link
@@ -29,7 +29,7 @@ export default async function MyListingsPage() {
       </div>
 
       {listings.length === 0 ? (
-        <p className="mt-10 rounded-lg border border-dashed border-black/15 dark:border-white/20 p-8 text-center text-sm opacity-70">
+        <p className="mt-10 rounded-lg border border-dashed border-hairline-strong p-8 text-center text-sm opacity-70">
           Još nemate oglasa.{' '}
           <Link href="/moji-oglasi/novi" className="underline underline-offset-4">
             Kreirajte prvi
@@ -39,7 +39,7 @@ export default async function MyListingsPage() {
       ) : (
         <ul className="mt-8 space-y-3">
           {listings.map((listing) => (
-            <li key={listing.id} className="rounded-lg border border-black/10 dark:border-white/10 p-4">
+            <li key={listing.id} className="rounded-lg border border-hairline p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <Link href={`/oglas/${listing.id}`} className="font-medium hover:underline underline-offset-4">
@@ -55,8 +55,8 @@ export default async function MyListingsPage() {
               <div className="mt-4 flex flex-wrap items-center gap-2">
                 <Link
                   href={`/moji-oglasi/${listing.id}/uredi`}
-                  className="rounded-md border border-black/15 dark:border-white/20 px-3 py-1.5 text-sm
-                             hover:border-black/40 dark:hover:border-white/50"
+                  className="rounded-md border border-hairline-strong px-3 py-1.5 text-sm
+                             hover:border-accent"
                 >
                   Uredi
                 </Link>

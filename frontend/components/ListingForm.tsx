@@ -236,7 +236,7 @@ export function ListingForm({ listing }: { listing?: ListingDetail }) {
         error={fieldErrors.lat ?? fieldErrors.lng}
       />
 
-      <fieldset className="space-y-4 rounded-md border border-black/10 dark:border-white/10 p-4">
+      <fieldset className="space-y-4 rounded-md border border-hairline p-4">
         <legend className="px-1 text-sm font-medium">Kontakt</legend>
         <Field label="Ime" error={fieldErrors.contactName}>
           <input name="contactName" required defaultValue={listing?.contactName ?? ''} className={inputClass} />

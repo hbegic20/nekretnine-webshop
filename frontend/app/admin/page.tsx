@@ -65,7 +65,7 @@ export default async function AdminPage({
               className={`rounded-md border px-3 py-1.5 text-sm ${
                 active
                   ? 'border-transparent bg-foreground text-background'
-                  : 'border-black/15 dark:border-white/20 hover:border-black/40 dark:hover:border-white/50'
+                  : 'border-hairline-strong hover:border-accent'
               }`}
             >
               {TAB_LABELS[tab]}{' '}
@@ -76,13 +76,13 @@ export default async function AdminPage({
       </nav>
 
       {queue.items.length === 0 ? (
-        <p className="mt-8 rounded-lg border border-dashed border-black/15 dark:border-white/20 p-8 text-center text-sm opacity-70">
+        <p className="mt-8 rounded-lg border border-dashed border-hairline-strong p-8 text-center text-sm opacity-70">
           {status === 'PENDING' ? 'Nema oglasa koji čekaju odobrenje.' : 'Nema oglasa u ovom statusu.'}
         </p>
       ) : (
         <ul className="mt-8 space-y-3">
           {queue.items.map((listing) => (
-            <li key={listing.id} className="rounded-lg border border-black/10 dark:border-white/10 p-4">
+            <li key={listing.id} className="rounded-lg border border-hairline p-4">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
                   <Link
@@ -112,8 +112,8 @@ export default async function AdminPage({
 
               <Link
                 href={`/admin/oglas/${listing.id}`}
-                className="mt-3 inline-block rounded-md border border-black/15 dark:border-white/20 px-3 py-1.5 text-sm
-                           hover:border-black/40 dark:hover:border-white/50"
+                className="mt-3 inline-block rounded-md border border-hairline-strong px-3 py-1.5 text-sm
+                           hover:border-accent"
               >
                 Pregledaj
               </Link>

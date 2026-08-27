@@ -29,7 +29,7 @@ export function Field({
 }
 
 export const inputClass =
-  'mt-1 w-full rounded-md border border-black/15 dark:border-white/20 bg-transparent px-3 py-2 ' +
+  'mt-1 w-full rounded-md border border-hairline-strong bg-transparent px-3 py-2 ' +
   'text-sm outline-none focus:border-black/40 dark:focus:border-white/50'
 
 export function FormError({ message }: { message: string }) {

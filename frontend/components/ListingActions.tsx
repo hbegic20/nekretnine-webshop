@@ -45,8 +45,8 @@ export function ListingActions({ id, status }: { id: string; status: ListingStat
   }
 
   const buttonClass =
-    'rounded-md border border-black/15 dark:border-white/20 px-3 py-1.5 text-sm ' +
-    'hover:border-black/40 dark:hover:border-white/50 disabled:opacity-40'
+    'rounded-md border border-hairline-strong px-3 py-1.5 text-sm ' +
+    'hover:border-accent disabled:opacity-40'
 
   return (
     <div className="flex flex-wrap items-center gap-2">

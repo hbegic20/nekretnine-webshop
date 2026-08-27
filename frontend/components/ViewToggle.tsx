@@ -12,9 +12,9 @@ import { listingFiltersToQuery, type ListingFilters } from 'shared'
 export function ViewToggle({ filters, active }: { filters: ListingFilters; active: 'list' | 'map' }) {
   const query = listingFiltersToQuery({ ...filters, page: 1 })
 
-  const base = 'rounded-md px-3 py-1.5 text-sm border'
-  const on = 'border-transparent bg-foreground text-background'
-  const off = 'border-black/15 dark:border-white/20 hover:border-black/40 dark:hover:border-white/50'
+  const base = 'rounded-md border px-3 py-1.5 text-sm transition-colors'
+  const on = 'border-transparent bg-accent text-on-accent'
+  const off = 'border-hairline-strong text-muted hover:border-accent hover:text-accent'
 
   return (
     <div className="flex gap-2" role="group" aria-label="Prikaz">

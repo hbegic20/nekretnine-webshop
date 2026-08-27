@@ -28,7 +28,7 @@ export function Gallery({ images, title }: { images: ListingImage[]; title: stri
 
   return (
     <div className="mt-6">
-      <div className="overflow-hidden rounded-lg border border-black/10 dark:border-white/10 bg-black/5 dark:bg-white/5">
+      <div className="overflow-hidden rounded-lg border border-hairline bg-sunken">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={current.url}

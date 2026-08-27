@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { LISTING_STATUSES, formatPrice, townLabel, type ListingStatus } from 'shared'
+import { LISTING_STATUSES, formatDate, formatPrice, townLabel, type ListingStatus } from 'shared'
 import { getCurrentUser } from '@/lib/auth'
 import { fetchAdminQueue } from '@/lib/admin'
 import { StatusBadge } from '@/components/StatusBadge'
@@ -106,7 +106,7 @@ export default async function AdminPage({
                     className="text-xs opacity-50"
                     title={listing.submittedAt}
                   >
-                    {new Date(listing.submittedAt).toLocaleDateString('bs-BA')}
+                    {formatDate(listing.submittedAt)}
                   </time>
 
                   {/* Choosing what leads the grid is a judgement about the

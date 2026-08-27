@@ -1,7 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { notFound } from 'next/navigation'
-import { formatPrice, townLabel } from 'shared'
+import { formatDate, formatPrice, townLabel } from 'shared'
 import { getCurrentUser } from '@/lib/auth'
 import { fetchAdminListing } from '@/lib/admin'
 import { StatusBadge } from '@/components/StatusBadge'
@@ -95,7 +95,7 @@ export default async function AdminListingPage({ params }: { params: Promise<{ i
                     <span className="opacity-70">· {payment.method}</span>
                     <br />
                     <time dateTime={payment.paidAt} className="text-xs opacity-60">
-                      {new Date(payment.paidAt).toLocaleDateString('bs-BA')}
+                      {formatDate(payment.paidAt)}
                     </time>
                     {payment.note && <p className="text-xs opacity-60">{payment.note}</p>}
                   </li>

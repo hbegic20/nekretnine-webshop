@@ -1,5 +1,11 @@
 import { describe, it, expect } from 'vitest'
-import { countActiveFilters, listingFiltersToQuery, parseListingFilters, slavicPlural } from 'shared'
+import {
+  countActiveFilters,
+  formatDate,
+  listingFiltersToQuery,
+  parseListingFilters,
+  slavicPlural,
+} from 'shared'
 
 /*
  * These test code that lives in /shared. It runs from here because the backend
@@ -130,5 +136,28 @@ describe('slavicPlural', () => {
     expect(kuca(3)).toBe('kuće')
     expect(kuca(7)).toBe('kuća')
     expect(kuca(0)).toBe('kuća')
+  })
+})
+
+describe('formatDate', () => {
+  /*
+   * The point of this function is that it does not vary by machine, so the
+   * tests are about determinism rather than about prettiness.
+   */
+  it('renders the Bosnian convention', () => {
+    expect(formatDate('2026-09-17T12:00:00.000Z')).toBe('17.09.2026.')
+    expect(formatDate('2026-01-05')).toBe('05.01.2026.')
+  })
+
+  it('does not shift the day near midnight, whatever the timezone', () => {
+    // toLocaleDateString would answer "17" or "18" here depending on where the
+    // machine is. This reads the date the API sent and leaves it alone.
+    expect(formatDate('2026-09-17T23:30:00.000Z')).toBe('17.09.2026.')
+    expect(formatDate('2026-09-17T00:30:00.000Z')).toBe('17.09.2026.')
+  })
+
+  it('hands back anything it does not understand', () => {
+    expect(formatDate('')).toBe('')
+    expect(formatDate('nonsense')).toBe('nonsense')
   })
 })

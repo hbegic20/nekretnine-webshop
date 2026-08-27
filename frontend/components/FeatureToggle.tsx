@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import { formatDate } from 'shared'
 import { readApiError } from '@/lib/api-client'
 
 /** Two weeks, which is what a fortnight of placement is usually sold as. */
@@ -69,7 +70,7 @@ export function FeatureToggle({
         aria-pressed={isFeatured}
         title={
           isFeatured && featuredUntil
-            ? `Izdvojeno do ${new Date(featuredUntil).toLocaleDateString('bs-BA')}`
+            ? `Izdvojeno do ${formatDate(featuredUntil)}`
             : `Izdvoji na ${days} dana`
         }
         className={`inline-flex min-h-9 items-center gap-1.5 rounded-md border px-2.5 text-xs
@@ -85,7 +86,7 @@ export function FeatureToggle({
 
       {isFeatured && featuredUntil && (
         <span className="text-[11px] text-faint">
-          do {new Date(featuredUntil).toLocaleDateString('bs-BA')}
+          do {formatDate(featuredUntil)}
         </span>
       )}
 

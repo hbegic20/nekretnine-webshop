@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { DEFAULT_EXPIRY_DAYS, PAYMENT_METHODS, type AdminListingDetail } from 'shared'
+import { DEFAULT_EXPIRY_DAYS, PAYMENT_METHODS, formatDate, type AdminListingDetail } from 'shared'
 import { readApiError } from '@/lib/api-client'
 import { FormError, inputClass } from './AuthFields'
 
@@ -102,6 +102,16 @@ export function ModerationPanel({ listing }: { listing: AdminListingDetail }) {
     await post('reject', { reason }, 'reject')
   }
 
+  /*
+   * Today, as the default payment date.
+   *
+   * This is genuinely time-dependent, so server and client can legitimately
+   * disagree — for the couple of minutes either side of UTC midnight they are
+   * different days, and React would report the attribute mismatch. There is no
+   * deterministic answer to "what is today", so this is the one place
+   * suppressHydrationWarning is the right tool rather than a way of hiding a
+   * bug: the client's answer is the correct one, and it wins.
+   */
   const today = new Date().toISOString().slice(0, 10)
 
   return (
@@ -185,7 +195,13 @@ export function ModerationPanel({ listing }: { listing: AdminListingDetail }) {
               </label>
               <label className="block text-sm">
                 Datum uplate
-                <input name="paidAt" type="date" defaultValue={today} className={inputClass} />
+                <input
+                  name="paidAt"
+                  type="date"
+                  defaultValue={today}
+                  suppressHydrationWarning
+                  className={inputClass}
+                />
               </label>
               <label className="block text-sm">
                 Napomena
@@ -215,7 +231,7 @@ export function ModerationPanel({ listing }: { listing: AdminListingDetail }) {
             <>
               <p className="text-sm">
                 Izdvojeno do{' '}
-                <strong>{new Date(listing.featuredUntil).toLocaleDateString('bs-BA')}</strong>.
+                <strong>{formatDate(listing.featuredUntil)}</strong>.
               </p>
               <div className="flex flex-wrap gap-2">
                 <label className="block text-sm">

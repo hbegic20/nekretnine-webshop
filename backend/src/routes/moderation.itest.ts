@@ -7,6 +7,7 @@ import { api, type ApiError } from '../test/api.js'
 import {
   createAdmin,
   createSeller,
+  daysAgo,
   daysFromNow,
   insertListing,
   listingInput,
@@ -239,6 +240,68 @@ describe('illegal transitions', () => {
 
     expect((await seller.client.post(`/api/listings/${sold.id}/submit`)).status).toBe(400)
     expect((await seller.client.post(`/api/listings/${sold.id}/sold`)).status).toBe(400)
+  })
+})
+
+describe('featuring a listing that is already live', () => {
+  it('lets an admin start placement without republishing', async () => {
+    const seller = await createSeller()
+    const admin = await createAdmin()
+    const listing = await publishedListing(seller.user.id, { publishedAt: daysAgo(7) })
+
+    const response = await admin.client.post(`/api/listings/${listing.id}/feature`, { days: 14 })
+
+    expect(response.status).toBe(200)
+    expect(await featuredDaysLeft(listing.id)).toBe(14)
+
+    /*
+     * The listing keeps its place in "newest". Before this endpoint the only
+     * way to feature something already live was to take it down and publish it
+     * again, which resets published_at — a punishing way to sell an upgrade.
+     */
+    const [row] = await db.select().from(listings).where(eq(listings.id, listing.id))
+    expect(Math.round((Date.now() - (row?.publishedAt?.getTime() ?? 0)) / DAY_MS)).toBe(7)
+    expect(row?.status).toBe('PUBLISHED')
+  })
+
+  it('lets an admin end it, and tells "never" apart from "expired"', async () => {
+    const seller = await createSeller()
+    const admin = await createAdmin()
+    const listing = await publishedListing(seller.user.id, { featuredUntil: daysFromNow(20) })
+
+    const response = await admin.client.delete(`/api/listings/${listing.id}/feature`)
+
+    expect(response.status).toBe(200)
+    // Cleared, not backdated: "featured until yesterday" and "never featured"
+    // are different facts, and only one is true after a refund.
+    const [row] = await db.select().from(listings).where(eq(listings.id, listing.id))
+    expect(row?.featuredUntil).toBeNull()
+  })
+
+  it('refuses on a listing the public cannot see', async () => {
+    const seller = await createSeller()
+    const admin = await createAdmin()
+    const draft = await insertListing(seller.user.id, { status: 'DRAFT' })
+
+    const response = await admin.client.post<ApiError>(`/api/listings/${draft.id}/feature`, {
+      days: 14,
+    })
+
+    // An admin featuring a draft has almost certainly mistaken it for the
+    // published one — worth refusing rather than taking money for placement
+    // nobody can see.
+    expect(response.status).toBe(400)
+    expect(await featuredDaysLeft(draft.id)).toBeNull()
+  })
+
+  it('is closed to sellers, including for their own listing', async () => {
+    const seller = await createSeller()
+    const listing = await publishedListing(seller.user.id)
+
+    expect((await seller.client.post(`/api/listings/${listing.id}/feature`, { days: 30 })).status).toBe(403)
+    expect((await seller.client.delete(`/api/listings/${listing.id}/feature`)).status).toBe(403)
+    expect((await api().delete(`/api/listings/${listing.id}/feature`)).status).toBe(401)
+    expect(await featuredDaysLeft(listing.id)).toBeNull()
   })
 })
 

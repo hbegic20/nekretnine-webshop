@@ -184,9 +184,10 @@ front. The review page shows the listing as a buyer sees it, plus the owner's
 contact details, the payment ledger, and how many inquiries and saves it has.
 
 **Featured listings** — "izdvojeni oglas", the paid placement every portal in
-this market sells. The admin ticks a box while approving, the listing sorts
-first with a gold ribbon for the period bought, and the payment is recorded the
-same way every other one is. Stored as an expiry date rather than a flag, so
+this market sells. The admin either ticks a box while approving or stars any
+live listing straight from the queue, and it then sorts first, spans two grid
+columns and carries a gold ribbon for the period bought. The payment is
+recorded the same way every other one is. Stored as an expiry date rather than a flag, so
 nothing has to switch it off; sold listings still sort last, because prominence
 among things nobody can buy is not what anyone paid for.
 

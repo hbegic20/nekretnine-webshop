@@ -82,6 +82,7 @@ export async function adminListListings(
         owner: toOwner(row.owner),
         submittedAt: row.listing.updatedAt.toISOString(),
         expiresAt: row.listing.expiresAt?.toISOString() ?? null,
+        featuredUntil: row.listing.featuredUntil?.toISOString() ?? null,
       }
     }),
     total: counted[0]?.count ?? 0,

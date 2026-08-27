@@ -190,6 +190,8 @@ export interface AdminListingSummary extends ListingSummary {
   owner: ListingOwner
   submittedAt: string
   expiresAt: string | null
+  /** When paid placement runs out. Admin-only shape, so the date is fine here. */
+  featuredUntil: string | null
 }
 
 export interface PaymentRecord {

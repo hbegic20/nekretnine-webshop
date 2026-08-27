@@ -5,6 +5,7 @@ import { LISTING_STATUSES, formatPrice, townLabel, type ListingStatus } from 'sh
 import { getCurrentUser } from '@/lib/auth'
 import { fetchAdminQueue } from '@/lib/admin'
 import { StatusBadge } from '@/components/StatusBadge'
+import { FeatureToggle } from '@/components/FeatureToggle'
 
 export const metadata: Metadata = { title: 'Moderacija' }
 
@@ -107,6 +108,18 @@ export default async function AdminPage({
                   >
                     {new Date(listing.submittedAt).toLocaleDateString('bs-BA')}
                   </time>
+
+                  {/* Choosing what leads the grid is a judgement about the
+                      whole page, so it belongs in the list rather than only on
+                      the review screen. Live listings only — the API refuses
+                      the rest. */}
+                  {listing.status === 'PUBLISHED' && (
+                    <FeatureToggle
+                      listingId={listing.id}
+                      isFeatured={listing.isFeatured}
+                      featuredUntil={listing.featuredUntil}
+                    />
+                  )}
                 </div>
               </div>
 

@@ -32,14 +32,15 @@ export function ModerationPanel({ listing }: { listing: AdminListingDetail }) {
   const canReject = listing.status === 'PENDING'
   const canTakeDown = listing.status === 'PUBLISHED'
 
-  async function post(path: string, body: unknown, label: string) {
+  async function post(path: string, body: unknown, label: string, method = 'POST') {
     setError(null)
     setPending(label)
     try {
       const response = await fetch(`/api/listings/${listing.id}/${path}`, {
-        method: 'POST',
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
+        // DELETE carries no body — the endpoint takes the id from the path.
+        ...(body === null ? {} : { body: JSON.stringify(body) }),
       })
       if (!response.ok) {
         setError((await readApiError(response)).message)
@@ -87,6 +88,12 @@ export function ModerationPanel({ listing }: { listing: AdminListingDetail }) {
       },
       'publish',
     )
+  }
+
+  async function onFeature(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const days = Number(new FormData(event.currentTarget).get('days') ?? 14)
+    await post('feature', { days }, 'feature')
   }
 
   async function onReject(event: React.FormEvent<HTMLFormElement>) {
@@ -194,6 +201,65 @@ export function ModerationPanel({ listing }: { listing: AdminListingDetail }) {
           >
             {pending === 'publish' ? 'Objavljujem…' : 'Odobri i objavi'}
           </button>
+        </form>
+      )}
+
+      {canTakeDown && (
+        <form
+          onSubmit={onFeature}
+          className="space-y-3 rounded-md border border-featured/40 bg-featured-soft/40 p-3"
+        >
+          <h3 className="text-sm font-medium">Izdvajanje</h3>
+
+          {listing.isFeatured && listing.featuredUntil ? (
+            <>
+              <p className="text-sm">
+                Izdvojeno do{' '}
+                <strong>{new Date(listing.featuredUntil).toLocaleDateString('bs-BA')}</strong>.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <label className="block text-sm">
+                  Produži (dana)
+                  <input name="days" type="number" min={1} max={365} defaultValue={14} className={inputClass} />
+                </label>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="submit"
+                  disabled={pending !== null}
+                  className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
+                >
+                  {pending === 'feature' ? 'Snimam…' : 'Postavi novi rok'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void post('feature', null, 'unfeature', 'DELETE')}
+                  disabled={pending !== null}
+                  className="rounded-md border border-hairline-strong px-4 py-2 text-sm disabled:opacity-50"
+                >
+                  {pending === 'unfeature' ? 'Uklanjam…' : 'Ukloni izdvajanje'}
+                </button>
+              </div>
+            </>
+          ) : (
+            <>
+              <label className="block text-sm">
+                Izdvoji na (dana)
+                <input name="days" type="number" min={1} max={365} defaultValue={14} className={inputClass} />
+              </label>
+              <button
+                type="submit"
+                disabled={pending !== null}
+                className="rounded-md bg-foreground px-4 py-2 text-sm font-medium text-background disabled:opacity-50"
+              >
+                {pending === 'feature' ? 'Izdvajam…' : 'Izdvoji oglas'}
+              </button>
+            </>
+          )}
+
+          <p className="text-xs text-muted">
+            Izdvojeni oglasi se prikazuju prvi i veći. Vrijede samo dok ih je malo.
+          </p>
         </form>
       )}
 

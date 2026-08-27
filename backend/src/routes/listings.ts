@@ -15,6 +15,7 @@ import {
   listMapPins,
   listOwnListings,
   listPublicListings,
+  setFeatured,
   transitionListing,
   updateListing,
 } from '../services/listings.js'
@@ -304,6 +305,31 @@ listingsRouter.post('/:id/publish', requireAuth, requireAdmin, async (req, res) 
   }
 
   res.json({ listing })
+})
+
+const featureSchema = z.object({
+  /** Days from now. The same ceiling as the expiry, for the same reason. */
+  days: z.number().int().min(1).max(365),
+})
+
+/**
+ * POST /api/listings/:id/feature — start or extend paid placement.
+ *
+ * Separate from publishing because the two happen at different moments: an
+ * admin sells placement at approval when the seller asks for it up front, and
+ * from here when they ask a week later. Both end at the same column.
+ */
+listingsRouter.post('/:id/feature', requireAuth, requireAdmin, async (req, res) => {
+  const id = z.uuid().parse(req.params.id)
+  const { days } = featureSchema.parse(req.body)
+
+  res.json({ listing: await setFeatured(currentUser(req), id, days) })
+})
+
+/** DELETE /api/listings/:id/feature — end it now. */
+listingsRouter.delete('/:id/feature', requireAuth, requireAdmin, async (req, res) => {
+  const id = z.uuid().parse(req.params.id)
+  res.json({ listing: await setFeatured(currentUser(req), id, null) })
 })
 
 const rejectSchema = z.object({

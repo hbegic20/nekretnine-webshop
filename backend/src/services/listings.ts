@@ -558,6 +558,55 @@ function statusAfterEdit(current: ListingStatus, changed: string[], user: User):
 }
 
 /**
+ * Turn paid placement on or off for a listing that is already live.
+ *
+ * Selling it at approval covers the common case, but not the ones that
+ * actually come up: a seller who decides to promote a listing that has been up
+ * for a week, an admin correcting a mistake, or a refund. Without this the
+ * only way to change placement was to take the listing down and publish it
+ * again, which resets `published_at` and drops it to the bottom of "newest" —
+ * a punishing way to fix a typo.
+ *
+ * `days: null` removes it. That clears the date rather than setting it to the
+ * past, because "featured until yesterday" and "never featured" mean different
+ * things and only one of them is true after a refund.
+ */
+export async function setFeatured(
+  user: User,
+  id: string,
+  days: number | null,
+): Promise<Listing> {
+  if (!user.isAdmin) throw forbidden('Samo administrator može izdvojiti oglas')
+
+  const current = await getListingRow(id)
+
+  /*
+   * Only a live listing. Placement on anything else is placement nobody can
+   * see — and an admin who features a draft has almost certainly mistaken it
+   * for the published one, which is a mistake worth refusing rather than
+   * silently accepting money for.
+   */
+  if (current.status !== 'PUBLISHED') {
+    throw badRequest('Samo objavljen oglas može biti izdvojen')
+  }
+
+  const featuredUntil =
+    days === null ? null : new Date(Date.now() + days * 24 * 60 * 60 * 1000)
+
+  const rows = await db
+    .update(listings)
+    .set({ featuredUntil, updatedAt: new Date() })
+    .where(eq(listings.id, id))
+    .returning()
+
+  const updated = rows[0]
+  if (!updated) throw notFound('Oglas nije pronađen')
+
+  log.info('listing featured', { listingId: id, byUserId: user.id, days })
+  return updated
+}
+
+/**
  * Soft delete. The row survives so its payment and inquiry history survives
  * with it (see the comment on `listings.deletedAt`).
  */

@@ -1,0 +1,71 @@
+name: Migrate production database
+
+# Manual only. Never on push.
+#
+# Migrations are a deliberate act here, for the reason ARCHITECTURE.md §7 gives
+# for keeping them out of the API's start-up: several instances racing to
+# migrate one database is a nasty class of bug, and a migration that fails on
+# boot puts the service into a restart loop that buries the real error.
+#
+# Render's pre-deploy command would be the natural home for this, but it is a
+# paid feature. This workflow is the free equivalent: it runs the same
+# `drizzle-kit` migrator against Neon, from a machine that is not the API.
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Type "migrate" to confirm — this writes to the production database'
+        required: true
+        type: string
+
+# Two migrations running at once would fight over the same lock table. One at a
+# time, and never cancel a run halfway through applying SQL.
+concurrency:
+  group: migrate-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  migrate:
+    name: Apply pending migrations
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check the confirmation
+        if: inputs.confirm != 'migrate'
+        run: |
+          echo "::error::Confirmation text did not match. Type exactly: migrate"
+          exit 1
+
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - run: npm ci
+
+      - name: Show what will be applied
+        run: ls -1 backend/src/db/migrations/*.sql
+
+      - name: Migrate
+        working-directory: backend
+        run: npm run db:migrate
+        env:
+          # The Neon connection string, with ?sslmode=verify-full.
+          # Repository → Settings → Secrets and variables → Actions.
+          DATABASE_URL: ${{ secrets.PRODUCTION_DATABASE_URL }}
+
+          # Mirrors what the migrate service in docker-compose.yml does, and
+          # for the same reason: env.ts refuses to start in production with
+          # disk storage, so a container that only migrates still has to
+          # satisfy that check. Nothing here ever touches storage.
+          NODE_ENV: production
+          STORAGE_DRIVER: s3
+          S3_BUCKET: unused
+          S3_ACCESS_KEY_ID: unused
+          S3_SECRET_ACCESS_KEY: unused
+          S3_PUBLIC_BASE_URL: http://unused

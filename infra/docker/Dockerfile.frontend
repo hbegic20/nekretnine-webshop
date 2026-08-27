@@ -25,6 +25,12 @@ RUN npm run build --workspace=shared
 ARG BACKEND_URL=http://backend:4000
 ENV BACKEND_URL=$BACKEND_URL
 
+# Asks next.config.ts for `output: 'standalone'`, which the runner stage below
+# depends on. It is opt-in rather than always-on because Netlify builds the
+# same app through its own adapter and must not get a standalone server —
+# see the note in frontend/next.config.ts.
+ENV NEXT_OUTPUT=standalone
+
 RUN npm run build --workspace=frontend
 
 

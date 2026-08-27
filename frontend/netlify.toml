@@ -1,0 +1,45 @@
+# Netlify build settings for the frontend.
+#
+# This file lives in /frontend, not at the repository root, and that is what
+# Netlify's monorepo support expects: the *base* directory stays at the root so
+# `npm ci` installs the whole npm workspace (the frontend imports `shared`, and
+# an install run inside /frontend alone would not link it), while the *package
+# directory* — set to `frontend` in the Netlify UI when the site is created —
+# tells Netlify where the site and this file are.
+#
+# Paths below are therefore relative to /frontend, but the build command runs
+# from the repository root.
+
+[build]
+  # `shared` first: the frontend imports it, and its dist/ is what the import
+  # resolves to. Building the backend here as well would work and waste a
+  # minute of build time on every deploy.
+  command = "npm run build --workspace=shared && npm run build --workspace=frontend"
+  publish = ".next"
+
+[build.environment]
+  # Match the Docker images and CI. Netlify's default tracks its own schedule,
+  # and finding out that production runs a different major than everything else
+  # is not a discovery worth making later.
+  NODE_VERSION = "24"
+
+  # BACKEND_URL is deliberately NOT set here — it belongs in the Netlify UI
+  # (Site configuration → Environment variables), because it names the Render
+  # service and changing it should not need a commit.
+  #
+  # It is needed at two different moments, which is the single most confusing
+  # thing about this setup:
+  #
+  #   build time  next.config.ts bakes the /api/* rewrite destination into
+  #               routes-manifest.json. Changing BACKEND_URL therefore requires
+  #               a REDEPLOY, not just a restart.
+  #   run time    lib/api.ts uses it for the fetches Server Components make
+  #               directly, which never pass through the rewrite.
+  #
+  # Netlify exposes site environment variables during both, so one variable
+  # covers both needs.
+
+# Next.js support is installed automatically by Netlify (the OpenNext-based
+# runtime), so there is no [[plugins]] block here on purpose. If a build ever
+# reports that no framework was detected, the package directory is wrong —
+# that, not a missing plugin, is the usual cause.

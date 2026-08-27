@@ -231,11 +231,26 @@ because container filesystems are wiped on every deploy.
 
 ---
 
+## Deploying
+
+Nothing is live yet, but the configuration is in the repository and the runbook
+is written: **[infra/prod/DEPLOY.md](infra/prod/DEPLOY.md)**.
+
+The shape is the frontend on Netlify, the API as a Docker service on Render,
+Postgres on Neon, images on Cloudflare R2 and email through Resend — every one
+on a free plan. The browser only ever talks to Netlify, which forwards `/api/*`
+to Render server-side, so there is no CORS and the session cookie is
+first-party.
+
+Two things in there are worth knowing before you need them: `BACKEND_URL`
+changes require a **redeploy**, not a restart, because Next bakes rewrite
+destinations into the build; and migrations run from a manual GitHub Actions
+workflow rather than on API start-up.
+
+---
+
 ## Not built yet
 
-- **Deployment (Phase 7).** Nothing is hosted. The plan is the frontend on
-  Vercel, the backend image on Render or Railway, Postgres on Neon, images on
-  Cloudflare R2 and email through Resend — all free tiers at this scale.
 - Integration tests for the image upload route.
 - Frontend tests.
 - Email verification and password reset, deferred to v1.1 (SPEC §4.1).

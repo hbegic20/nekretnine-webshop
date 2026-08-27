@@ -1,0 +1,104 @@
+# Render blueprint for the API.
+#
+# Render reads this from the repository root by default, so point it here when
+# creating the Blueprint (New → Blueprint → this repo → path infra/prod/render.yaml),
+# or copy it to the root if that ever becomes annoying.
+#
+# What this file is NOT: the whole deployment. The frontend is on Netlify, the
+# database on Neon, images on Cloudflare R2 and email through Resend. Each of
+# those is created by hand once, and infra/prod/DEPLOY.md is the runbook.
+
+services:
+  - type: web
+    name: nekretnine-api
+    runtime: docker
+
+    # Frankfurt is the closest region to Bosnia that Render offers. Latency to
+    # the database matters more than latency to the browser here, because
+    # Netlify proxies every API call server-side — so keep this and the Neon
+    # project in the same city.
+    region: frankfurt
+    plan: free
+
+    # Built from the same Dockerfile that `npm run stack:up` uses, so what
+    # deploys is what you can run locally. The context is the repository root
+    # because the Dockerfile copies package-lock.json and the shared workspace,
+    # not just backend/.
+    dockerfilePath: ./infra/docker/Dockerfile.backend
+    dockerContext: .
+
+    branch: main
+    autoDeploy: true
+
+    # The liveness endpoint, not /health/ready. Render restarts a service that
+    # fails its health check, and restarting the API because Postgres blipped
+    # would turn a database hiccup into a restart loop. See src/app.ts.
+    healthCheckPath: /health
+
+    envVars:
+      - key: NODE_ENV
+        value: production
+
+      # Set explicitly rather than left to Render's injected default, so the
+      # port the app binds, the port the Dockerfile EXPOSEs and the port its
+      # HEALTHCHECK curls are all the same number.
+      - key: PORT
+        value: 4000
+
+      # `sync: false` means "ask me in the dashboard, do not store it here".
+      # Every one of these is a credential; none belongs in git.
+      # Neon, and end it with ?sslmode=verify-full — NOT the ?sslmode=require
+      # that Neon's copy button gives you. Verified in pg-connection-string:
+      # `require` turns TLS on and then sets rejectUnauthorized:false, so the
+      # connection is encrypted against eavesdropping but not against someone
+      # impersonating the database. `verify-full` checks the certificate and
+      # the hostname, and needs no extra configuration because Neon's cert is
+      # signed by a public CA that Node already trusts.
+      - key: DATABASE_URL
+        sync: false
+      - key: SESSION_TTL_DAYS
+        value: 30
+
+      # --- Cloudflare R2 (ARCHITECTURE.md §6.1) ---------------------------
+      # The app REFUSES TO START in production with STORAGE_DRIVER=disk, on
+      # purpose: container filesystems are wiped on every deploy, and uploads
+      # would appear to work and then silently vanish. Render's free instance
+      # is exactly such a filesystem.
+      - key: STORAGE_DRIVER
+        value: s3
+      - key: S3_REGION
+        value: auto # R2 expects literally "auto"
+      - key: S3_ENDPOINT
+        sync: false # https://<account-id>.r2.cloudflarestorage.com
+      - key: S3_BUCKET
+        sync: false
+      - key: S3_ACCESS_KEY_ID
+        sync: false
+      - key: S3_SECRET_ACCESS_KEY
+        sync: false
+      # The public base URL images are served from — an r2.dev subdomain or a
+      # custom domain. Never built by string concatenation in the frontend;
+      # everything goes through storage.urlFor().
+      - key: S3_PUBLIC_BASE_URL
+        sync: false
+
+      # --- Resend (ARCHITECTURE.md §6.4) -----------------------------------
+      # env.ts refuses to start with MAIL_DRIVER=smtp and no SMTP_URL, and
+      # warns loudly on every boot if production is left on the console mailer.
+      - key: MAIL_DRIVER
+        value: smtp
+      - key: SMTP_URL
+        sync: false # smtps://resend:<api-key>@smtp.resend.com:465
+      - key: MAIL_FROM
+        sync: false # Nekretnine <noreply@your-domain>
+
+# Note on migrations: they are NOT run here.
+#
+# Render's pre-deploy command — the natural place for them — is a paid
+# feature, and running them from the API's own start command was rejected in
+# ARCHITECTURE.md §7: several instances racing to migrate one database is a
+# genuinely nasty class of bug, and a failed migration would put the service
+# into a restart loop that buries the real error.
+#
+# Instead they run as a deliberate step, from .github/workflows/migrate.yml,
+# against Neon. See infra/prod/DEPLOY.md.

@@ -17,14 +17,29 @@ import type { NextConfig } from 'next'
  */
 const backendUrl = process.env.BACKEND_URL ?? 'http://localhost:4000'
 
+/**
+ * Standalone output is for the Docker image, and only for it.
+ *
+ * It produces .next/standalone: a self-contained server plus only the
+ * node_modules actually reachable from the code, traced by Next. That is what
+ * keeps the runtime image small — the alternative is shipping the entire
+ * dependency tree, most of which is build tooling.
+ *
+ * Netlify must NOT get it. Netlify builds through its own OpenNext adapter,
+ * which splits the app into functions and static assets itself; handing it a
+ * standalone server as well means building two deployment shapes and hoping
+ * the right one wins. So the Dockerfile sets NEXT_OUTPUT=standalone and
+ * nothing else does — `npm run dev`, `npm run build` and Netlify all get the
+ * default output.
+ *
+ * `outputFileTracingRoot` below stays on in both cases: it is what pulls
+ * /shared into the traced file list, and Netlify needs that as much as Docker
+ * does.
+ */
+const standalone = process.env.NEXT_OUTPUT === 'standalone'
+
 const nextConfig: NextConfig = {
-  /**
-   * Produces .next/standalone: a self-contained server plus only the
-   * node_modules actually reachable from the code, traced by Next. It is what
-   * keeps the runtime image small — the alternative is shipping the entire
-   * dependency tree, most of which is build tooling.
-   */
-  output: 'standalone',
+  ...(standalone ? { output: 'standalone' as const } : {}),
 
   /**
    * In a monorepo, tracing has to start at the workspace root or Next will

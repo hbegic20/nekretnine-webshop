@@ -8,6 +8,7 @@ import { Gallery } from '@/components/Gallery'
 import { FavoriteButton } from '@/components/FavoriteButton'
 import { InquiryForm } from '@/components/InquiryForm'
 import { ListingMap } from '@/components/map/ListingMap'
+import { ListingJsonLd } from '@/components/ListingJsonLd'
 
 const PROPERTY_LABELS: Record<string, string> = {
   apartment: 'Stan',
@@ -68,6 +69,9 @@ export default async function ListingPage({ params }: { params: Promise<{ id: st
 
   return (
     <main className="mx-auto w-full max-w-3xl px-6 py-12">
+      {/* Renders nothing for a listing the public cannot open. */}
+      <ListingJsonLd listing={listing} />
+
       <Link href="/" className="text-sm underline underline-offset-4 opacity-70 hover:opacity-100">
         ← Svi oglasi
       </Link>

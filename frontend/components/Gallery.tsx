@@ -11,11 +11,14 @@ import type { ListingImage } from 'shared'
  * environment (localhost:4000 with the disk driver, an R2 domain in
  * production). It would also re-optimise images we have already resized and
  * converted to WebP ourselves in the upload pipeline, paying twice for the
- * same work.
+ * same work — and on Netlify each distinct size runs through a function, in
+ * the request path, on a plan with a budget.
  *
- * What next/image would otherwise give us we do by hand below: explicit
- * width/height so the layout does not jump, and lazy loading for everything
- * below the fold.
+ * What next/image would otherwise give us we do by hand: explicit
+ * width/height so the layout does not jump, lazy loading below the fold, and
+ * — since the upload pipeline gained a mid rendition — a real srcset. The
+ * browser picks from the sizes we already store, straight from the CDN, with
+ * nothing to configure per environment.
  */
 
 export function Gallery({ images, title }: { images: ListingImage[]; title: string }) {
@@ -32,6 +35,15 @@ export function Gallery({ images, title }: { images: ListingImage[]; title: stri
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
           src={current.url}
+          /*
+           * The main image is the LCP element on this page, so this is where
+           * the mid rendition earns the most: a phone shows it about 390px
+           * wide and was being handed the full 1600px file.
+           */
+          srcSet={`${current.midUrl} 1000w, ${current.url} 1600w`}
+          /* Capped by the max-w-3xl container: never wider than 768px, and
+             the full viewport below that. */
+          sizes="(min-width: 768px) 768px, 100vw"
           alt={title}
           width={current.width}
           height={current.height}

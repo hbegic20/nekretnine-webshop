@@ -17,6 +17,14 @@ import type { Town } from './towns.js'
 export interface ListingImage {
   id: string
   url: string
+  /**
+   * A middle size, for the srcset a card or a gallery builds.
+   *
+   * Never null: an image stored before this rendition existed reports its full
+   * -size URL here, so every consumer can treat it as present and the srcset
+   * is always valid. The browser then simply has one fewer candidate.
+   */
+  midUrl: string
   thumbUrl: string
   width: number
   height: number

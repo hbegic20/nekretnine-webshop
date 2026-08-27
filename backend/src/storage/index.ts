@@ -19,6 +19,15 @@ import { S3Storage } from './s3.js'
 export interface StorageAdapter {
   readonly name: string
   put(key: string, body: Buffer, contentType: string): Promise<void>
+  /**
+   * Read a stored file back.
+   *
+   * Added for the backfill that generates a mid-size rendition from an image
+   * uploaded before that size existed. Nothing in the request path reads
+   * files — browsers fetch them straight from disk or R2 — so this exists for
+   * maintenance work, which is exactly the kind of thing that turns up again.
+   */
+  get(key: string): Promise<Buffer>
   delete(key: string): Promise<void>
   /** The public URL a browser should use for this key. */
   urlFor(key: string): string

@@ -66,6 +66,25 @@ export function ListingCard({
             /* eslint-disable-next-line @next/next/no-img-element */
             <img
               src={listing.coverImage.thumbUrl}
+              /*
+               * Two candidates, and the browser picks by its own pixel
+               * density and the `sizes` hint below.
+               *
+               * This is what the mid rendition exists for. A card is roughly
+               * 285px wide in the four-column grid and 345px on a phone; at
+               * 2-3x that wants 700-1000 real pixels, so the 480px thumbnail
+               * alone was arriving soft on exactly the devices most people
+               * browse on, while the 1600px original would be four times more
+               * data than the card can show.
+               */
+              srcSet={`${listing.coverImage.thumbUrl} 480w, ${listing.coverImage.midUrl} 1000w`}
+              /*
+               * `sizes` must mirror the grid in page.tsx, because the browser
+               * chooses before any CSS has been applied — it cannot measure
+               * the card, it can only read this. Get it wrong and it downloads
+               * the wrong file with complete confidence.
+               */
+              sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
               alt=""
               width={listing.coverImage.width}
               height={listing.coverImage.height}

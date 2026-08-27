@@ -95,6 +95,9 @@ function toImage(row: Image): ListingImage {
   return {
     id: row.id,
     url: storage.urlFor(row.storageKey),
+    // See the note in services/images.ts — null means "written before the mid
+    // rendition existed", and the full image is the honest stand-in.
+    midUrl: storage.urlFor(row.midKey ?? row.storageKey),
     thumbUrl: storage.urlFor(row.thumbKey),
     width: row.width,
     height: row.height,

@@ -1,0 +1,12 @@
+-- A middle size between the 480px thumbnail and the 1600px full image.
+--
+-- The two existing renditions do not fit the layout on a phone: a card is
+-- roughly 345 CSS pixels wide, which on a 2-3x screen wants 700-1000 real
+-- pixels, so the 480px thumbnail arrives slightly blurry — while the detail
+-- page hands the same phone a 1600px file to show at 390 CSS pixels. One size
+-- in the middle lets srcset pick sensibly at both ends.
+--
+-- Nullable, because rows written before this migration have no such file yet.
+-- `npm run images:backfill` generates them; until it runs, toListingImage
+-- falls back to the large image, which is what those rows serve today.
+ALTER TABLE "images" ADD COLUMN "mid_key" text;

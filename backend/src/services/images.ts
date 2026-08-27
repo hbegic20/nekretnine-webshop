@@ -20,8 +20,15 @@ const MAX_BYTES = 12 * 1024 * 1024
 const MAX_IMAGES_PER_LISTING = 15
 const ACCEPTED = new Set(['image/jpeg', 'image/png', 'image/webp'])
 
-/** Longest edge of the gallery image and of the card thumbnail. */
+/** Longest edge of the gallery image, the mid rendition and the card thumbnail. */
 const LARGE_EDGE = 1600
+/*
+ * The size the layout actually asks for on a phone. A card is about 345 CSS
+ * pixels wide and a phone is 2-3x, so it wants 700-1000 real pixels — more
+ * than the thumbnail has and far less than the full image. Without this size
+ * a browser must choose between a blurry card and a 1600px download.
+ */
+const MID_EDGE = 1000
 const THUMB_EDGE = 480
 
 export function isAcceptedType(contentType: string | undefined): boolean {
@@ -74,6 +81,9 @@ export function toListingImage(row: Image): ListingImage {
   return {
     id: row.id,
     url: storage.urlFor(row.storageKey),
+    // Falls back to the full image for rows written before the mid rendition
+    // existed, so consumers never have to check and the srcset stays valid.
+    midUrl: storage.urlFor(row.midKey ?? row.storageKey),
     thumbUrl: storage.urlFor(row.thumbKey),
     width: row.width,
     height: row.height,
@@ -193,11 +203,15 @@ export async function storeListingImage(input: StoreImageInput): Promise<Image> 
    * input's numbers would give the gallery a wrong aspect ratio and make the
    * page jump as images load.
    */
-  const [large, thumbBuffer] = await Promise.all([
+  const [large, midBuffer, thumbBuffer] = await Promise.all([
     base()
       .resize({ width: LARGE_EDGE, height: LARGE_EDGE, fit: 'inside', withoutEnlargement: true })
       .webp({ quality: 82 })
       .toBuffer({ resolveWithObject: true }),
+    base()
+      .resize({ width: MID_EDGE, height: MID_EDGE, fit: 'inside', withoutEnlargement: true })
+      .webp({ quality: 80 })
+      .toBuffer(),
     base()
       .resize({ width: THUMB_EDGE, height: THUMB_EDGE, fit: 'inside', withoutEnlargement: true })
       .webp({ quality: 75 })
@@ -206,10 +220,12 @@ export async function storeListingImage(input: StoreImageInput): Promise<Image> 
 
   const key = `listings/${input.listingId}/${randomUUID()}`
   const storageKey = `${key}.webp`
+  const midKey = `${key}-mid.webp`
   const thumbKey = `${key}-thumb.webp`
 
   await Promise.all([
     storage.put(storageKey, large.data, 'image/webp'),
+    storage.put(midKey, midBuffer, 'image/webp'),
     storage.put(thumbKey, thumbBuffer, 'image/webp'),
   ])
 
@@ -218,6 +234,7 @@ export async function storeListingImage(input: StoreImageInput): Promise<Image> 
     .values({
       listingId: input.listingId,
       storageKey,
+      midKey,
       thumbKey,
       width: large.info.width,
       height: large.info.height,
@@ -258,6 +275,14 @@ export async function deleteImage(user: User, imageId: string): Promise<{ return
     storage.delete(image.storageKey).catch((error: unknown) => {
       log.warn('orphaned image file', { key: image.storageKey, error: String(error) })
     }),
+    // Null for anything uploaded before the mid rendition existed.
+    ...(image.midKey
+      ? [
+          storage.delete(image.midKey).catch((error: unknown) => {
+            log.warn('orphaned mid file', { key: image.midKey, error: String(error) })
+          }),
+        ]
+      : []),
     storage.delete(image.thumbKey).catch((error: unknown) => {
       log.warn('orphaned thumb file', { key: image.thumbKey, error: String(error) })
     }),

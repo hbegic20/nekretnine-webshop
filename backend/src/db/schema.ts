@@ -254,6 +254,12 @@ export const images = pgTable(
       .notNull()
       .references(() => listings.id, { onDelete: 'cascade' }),
     storageKey: text('storage_key').notNull(),
+    /**
+     * A middle rendition, ~1000px. Nullable: rows created before migration
+     * 0003 have none until `npm run images:backfill` generates them, and
+     * toListingImage falls back to the large image meanwhile.
+     */
+    midKey: text('mid_key'),
     thumbKey: text('thumb_key').notNull(),
     width: integer('width').notNull(),
     height: integer('height').notNull(),

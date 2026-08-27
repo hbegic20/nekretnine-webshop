@@ -1,4 +1,4 @@
-import { mkdir, writeFile, rm } from 'node:fs/promises'
+import { mkdir, readFile, writeFile, rm } from 'node:fs/promises'
 import { dirname } from 'node:path'
 import { env } from '../env.js'
 import { resolveWithinRoot } from './safe-path.js'
@@ -25,6 +25,10 @@ export class DiskStorage implements StorageAdapter {
     const path = this.pathFor(key)
     await mkdir(dirname(path), { recursive: true })
     await writeFile(path, body)
+  }
+
+  get(key: string): Promise<Buffer> {
+    return readFile(this.pathFor(key))
   }
 
   async delete(key: string): Promise<void> {

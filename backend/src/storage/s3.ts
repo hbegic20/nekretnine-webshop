@@ -1,4 +1,4 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
+import { S3Client, PutObjectCommand, GetObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3'
 import { env } from '../env.js'
 import type { StorageAdapter } from './index.js'
 
@@ -40,6 +40,16 @@ export class S3Storage implements StorageAdapter {
         CacheControl: 'public, max-age=31536000, immutable',
       }),
     )
+  }
+
+  async get(key: string): Promise<Buffer> {
+    const response = await this.client.send(
+      new GetObjectCommand({ Bucket: this.bucket, Key: key }),
+    )
+    if (!response.Body) throw new Error(`no body for ${key}`)
+    // transformToByteArray is the SDK's own helper for draining the stream;
+    // hand-rolling the chunk loop is where subtle truncation bugs live.
+    return Buffer.from(await response.Body.transformToByteArray())
   }
 
   async delete(key: string): Promise<void> {

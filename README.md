@@ -68,7 +68,8 @@ public admin registration and there never will be (SPEC §2).
 
 ## What is built
 
-Everything through Phase 6. The lifecycle at the centre of it is
+Everything through Phase 7, plus a design pass and an SEO pass. The lifecycle
+at the centre of it is
 `DRAFT → PENDING → PUBLISHED → EXPIRED/SOLD`, with `REJECTED` as the side
 branch that admin takedowns also land in.
 
@@ -102,9 +103,12 @@ unavailable.
 delivery failure loses a notification rather than a buyer's message. Honeypot
 field, rate limited.
 
-**Image uploads** — multiple per listing, resized and thumbnailed with sharp,
-EXIF stripped, behind a storage adapter (disk in development, Cloudflare R2 in
-production).
+**Image uploads** — multiple per listing, behind a storage adapter (disk in
+development, Cloudflare R2 in production). Each upload is encoded to WebP at
+three sizes — 480px, 1000px and 1600px — so cards and the gallery can offer a
+`srcset` and let the browser pick. EXIF is stripped, which matters more than it
+sounds: phone photos routinely carry the GPS coordinates where they were
+taken.
 
 **Admin moderation** — the queue at `/admin`, a tab per status with live
 counts. PENDING is ordered oldest first, because a queue is worked from the
@@ -114,6 +118,18 @@ contact details, the payment ledger, and how many inquiries and saves it has.
 **Scheduled expiry** — an hourly job moves listings past their date to EXPIRED
 and emails the seller, because a listing that vanishes silently looks like the
 site lost it.
+
+**Design** — one accent (a deep teal) against a considered neutral, expressed
+entirely as CSS custom properties, so no component names a colour and the
+palette moves from one file. Archivo for the interface, Source Serif 4 for
+prices. Dark mode is a real three-way choice — light, dark, or follow the
+system — applied before first paint so there is no flash.
+
+**Findability** — a sitemap built from the live listings and regenerated
+hourly, a robots.txt that keeps crawlers out of the private areas, and
+`RealEstateListing` structured data on every published listing so a search
+result can show the price, size and town. Bosnian 404 and error pages, because
+the default ones are in English.
 
 **Docker and CI** — the whole stack runs in containers, and GitHub Actions
 lints, typechecks, tests and builds every pull request, then publishes both
@@ -137,7 +153,8 @@ All of these run from the repository root.
 | `npm run db:psql` | A psql shell inside the container. |
 | `npm run db:generate` | Generate a migration from schema changes. |
 | `npm run db:migrate` | Apply pending migrations. |
-| `npm run db:seed` | Re-seed. Deletes the seed seller's listings first. |
+| `npm run db:seed` | Re-seed. Deletes the seed seller's listings first, photos included. |
+| `npm run images:backfill` | Generate the 1000px rendition for images uploaded before it existed. Resumable. |
 | `npm run job:expire` | Run the expiry job once, by hand. |
 | `npm run stack:up` / `stack:down` / `stack:logs` | The whole thing in containers. |
 
@@ -251,6 +268,34 @@ workflow rather than on API start-up.
 
 ## Not built yet
 
+Sequenced, with the reasoning, in the
+[roadmap](https://claude.ai/code/artifact/3af45852-d8fe-4467-8c72-e4832622627f).
+The short version:
+
+**Next**
+
+- **Renewal reminders before expiry.** Today a seller learns their listing
+  expired once it is already gone. "7 days left" is one more query beside the
+  existing sweep, and renewal is the action that earns money.
+- **The deploy itself.** Everything above the line is cheaper before launch;
+  everything below wants real traffic.
+- **Map viewport search.** `listings_status_lat_lng_idx` was built in Phase 3
+  for exactly this and nothing queries it yet.
+
+**After that**
+
+- Price history and a "snižena cijena" badge — the edit path already treats
+  price as the one field that does not trigger re-moderation.
+- Seller signals: view counts and "prikaži broj".
+- Similar listings, saved searches with email alerts, report-a-listing, a PWA
+  manifest.
+
+**Still open**
+
 - Integration tests for the image upload route.
-- Frontend tests.
+- Frontend tests — needs a decision on a test runner first, which would be a
+  new dependency.
 - Email verification and password reset, deferred to v1.1 (SPEC §4.1).
+- An AI-assisted description writer, if the dependency and a budget are
+  approved. The reasoning for that one, and for the AI features worth
+  declining, is in the roadmap.

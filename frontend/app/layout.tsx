@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 import { Geist, Geist_Mono } from 'next/font/google'
 import './globals.css'
 import { Header } from '@/components/Header'
+import { siteUrl } from '@/lib/site'
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
 const geistMono = Geist_Mono({ variable: '--font-geist-mono', subsets: ['latin'] })
@@ -13,7 +14,9 @@ export const metadata: Metadata = {
   },
   description:
     'Oglasi za prodaju i najam nekretnina u Bugojnu, Gornjem Vakufu-Uskoplju, Donjem Vakufu, Jajcu, Kupresu, Travniku i Novom Travniku.',
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'http://localhost:3000'),
+  // Same value the sitemap and robots.txt are built from, so the three cannot
+  // disagree about what this site's address is.
+  metadataBase: new URL(siteUrl),
 }
 
 // Typed explicitly rather than with Next's generated `LayoutProps<'/'>` helper.

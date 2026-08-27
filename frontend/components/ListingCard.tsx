@@ -22,10 +22,29 @@ function isNew(publishedAt: string | null): boolean {
 export function ListingCard({
   listing,
   showStatus = false,
+  emphasise = false,
 }: {
   listing: ListingSummary
   showStatus?: boolean
+  /**
+   * Let a featured listing take two columns and a wider photo.
+   *
+   * Opt-in per page rather than automatic, because "featured" means something
+   * different depending on where you are standing. On the marketplace it is
+   * paid placement and should shout. In your own saved list or your seller
+   * dashboard it is just a property of a listing, and blowing one row up to
+   * double size there would be noise about somebody else's purchase.
+   */
+  emphasise?: boolean
 }) {
+  /*
+   * Double width, not double height. A card spanning two columns while keeping
+   * the 4:3 photo would be twice as tall as its neighbours as well as twice as
+   * wide, which pushes everything else off the screen — so the photo widens to
+   * 16:10 and the card ends up roughly 1.7x the height rather than 2x.
+   */
+  const large = emphasise && listing.isFeatured
+
   const facts = [
     listing.sizeM2 ? `${listing.sizeM2} m²` : null,
     listing.bedrooms ? `${listing.bedrooms} spavaće` : null,
@@ -39,7 +58,7 @@ export function ListingCard({
      * usually navigates instead of toggling. So the heart sits as a sibling,
      * positioned over the card.
      */
-    <div className="group relative">
+    <div className={`group relative ${large ? 'sm:col-span-2' : ''}`}>
       {listing.status === 'PUBLISHED' && (
         <FavoriteButton
           listingId={listing.id}
@@ -64,7 +83,7 @@ export function ListingCard({
                         : 'border border-hairline hover:border-hairline-strong'
                     }`}
       >
-        <div className="relative aspect-[4/3] overflow-hidden bg-sunken">
+        <div className={`relative overflow-hidden bg-sunken ${large ? 'aspect-[16/10]' : 'aspect-[4/3]'}`}>
           {listing.coverImage ? (
             /*
              * The photo scales inside a fixed frame on hover rather than the
@@ -93,7 +112,11 @@ export function ListingCard({
                * the card, it can only read this. Get it wrong and it downloads
                * the wrong file with complete confidence.
                */
-              sizes="(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw"
+              sizes={
+                large
+                  ? '(min-width: 1280px) 50vw, (min-width: 1024px) 67vw, 100vw'
+                  : '(min-width: 1280px) 25vw, (min-width: 1024px) 33vw, (min-width: 640px) 50vw, 100vw'
+              }
               alt=""
               width={listing.coverImage.width}
               height={listing.coverImage.height}
@@ -131,7 +154,11 @@ export function ListingCard({
             {/* The price leads, in the serif and with tabular figures so a
                 column of cards lines up down the page. It is the number
                 everyone is scanning for. */}
-            <p className="font-serif text-xl font-bold leading-none tracking-tight text-accent tabular">
+            <p
+              className={`font-serif font-bold leading-none tracking-tight text-accent tabular ${
+                large ? 'text-2xl' : 'text-xl'
+              }`}
+            >
               {formatPrice(listing.price)}
               {listing.transactionType === 'rent' && (
                 <span className="font-sans text-xs font-normal text-muted"> / mj.</span>
@@ -140,7 +167,11 @@ export function ListingCard({
             {showStatus && <StatusBadge status={listing.status} />}
           </div>
 
-          <h3 className="mt-0.5 line-clamp-2 text-[15px] font-semibold leading-snug">
+          <h3
+            className={`mt-0.5 line-clamp-2 font-semibold leading-snug ${
+              large ? 'text-lg' : 'text-[15px]'
+            }`}
+          >
             {listing.title}
           </h3>
 

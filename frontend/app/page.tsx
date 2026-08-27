@@ -61,9 +61,16 @@ export default async function HomePage({
           )}
         </div>
       ) : (
-        <div className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        /*
+         * `grid-flow-dense` matters once a card spans two columns: without it,
+         * a wide card that cannot fit in the remaining space leaves a hole and
+         * drops to the next row. Dense flow backfills that hole with the next
+         * card that does fit, so the grid stays solid however many listings
+         * are featured.
+         */
+        <div className="mt-6 grid grid-flow-dense gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {items.map((listing) => (
-            <ListingCard key={listing.id} listing={listing} />
+            <ListingCard key={listing.id} listing={listing} emphasise />
           ))}
         </div>
       )}

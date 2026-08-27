@@ -76,13 +76,20 @@ placeholders only.
 
 ### The seed data
 
-`npm run db:seed` creates, all owned by the seed seller:
+`npm run db:seed` creates:
 
-- **2 accounts** — an admin and a seller
-- **10 listings** across the seven towns: 8 `PUBLISHED`, 1 `PENDING` so the
-  moderation queue has something in it, and 1 `DRAFT` so the seller dashboard
-  is not a wall of identical badges
-- **30 photos** — three per listing
+- **3 accounts** — an admin and two sellers, so listings do not all come from
+  one name
+- **38 listings** across all seven towns and all five property types, priced
+  from a 300 KM monthly rent to a 290,000 KM house
+- **every status** — 31 `PUBLISHED`, 2 `PENDING`, 2 `DRAFT`, 2 `SOLD`, 1
+  `EXPIRED`, 1 `REJECTED — so every tab in `/admin` has something in it, and
+  31 published is past the 24-per-page limit so pagination actually paginates
+- **2 featured listings**, and deliberately no more: paid placement is only
+  worth something while most listings do not have it
+- **~90 photos** — one to three per listing, because plenty of real sellers
+  upload exactly one and a grid where every card has the same gallery depth
+  hides what a thin listing looks like
 
 The photos are *drawn, not downloaded*: SVG scenes rasterised by sharp, with a
 different building per property type and four times of day. That keeps the seed
@@ -95,12 +102,16 @@ Both accounts use the password `lozinka123`:
 | Email | Role |
 |---|---|
 | `admin@nekretnine.test` | Admin — the moderation queue at `/admin` |
-| `prodavac@nekretnine.test` | Seller — owns the ten sample listings |
+| `prodavac@nekretnine.test` | Seller — owns most of the sample listings |
+| `agencija@nekretnine.test` | A second seller, so the admin queue is not one name |
 
 Admins are made by promoting an existing user, never by signing up. There is no
 public admin registration and there never will be (SPEC §2).
 
-**Re-seeding** (`npm run db:seed`) deletes the seed seller's listings and their
+Seeding takes about fifteen seconds, almost all of it drawing and encoding
+photos. It only runs automatically into an empty database.
+
+**Re-seeding** (`npm run db:seed`) deletes the seed sellers' listings and their
 photo files first, then recreates everything. Your own account and anything you
 created under it are untouched. The photos are drawn from a fixed seed, so the
 same listing gets the same picture every time — otherwise every reset would

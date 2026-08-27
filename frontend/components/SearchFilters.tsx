@@ -137,10 +137,42 @@ export function SearchFilters({ filters }: { filters: ListingFilters }) {
             </span>
           )}
         </span>
-        <span aria-hidden className="text-xs">{detailsOpen ? '▲' : '▼'}</span>
+        <span
+          aria-hidden
+          className={`text-xs transition-transform duration-200 ${detailsOpen ? 'rotate-180' : ''}`}
+        >
+          ▼
+        </span>
       </button>
 
-      <div className={`${detailsOpen ? 'flex' : 'hidden'} flex-col gap-3 sm:flex`}>
+      {/*
+        * Animating to "auto" height, without measuring anything in JS.
+        *
+        * A grid row of `0fr` collapses to nothing and `1fr` expands to exactly
+        * the content's height, and grid-template-rows is animatable — which
+        * height:auto is not. The inner element carries overflow-hidden and
+        * min-h-0 so the content is clipped rather than spilling while the row
+        * is still opening.
+        *
+        * `invisible` rather than `hidden` when closed: display:none cannot be
+        * transitioned, and visibility:hidden still keeps the fields in the form
+        * (so they submit) while taking them out of the tab order and the
+        * accessibility tree — which display:none would do too, but a
+        * zero-height overflow-hidden box on its own would not.
+        *
+        * Above `sm` every one of these is overridden: the panel is simply open.
+        * The blanket prefers-reduced-motion rule in globals.css turns the
+        * animation off for anyone who asked for that.
+        */}
+      <div
+        className={`grid transition-[grid-template-rows,opacity] duration-200 ease-out
+                    sm:visible sm:grid-rows-[1fr] sm:opacity-100 ${
+                      detailsOpen
+                        ? 'visible grid-rows-[1fr] opacity-100'
+                        : 'invisible grid-rows-[0fr] opacity-0'
+                    }`}
+      >
+      <div className="flex min-h-0 flex-col gap-3 overflow-hidden">
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <select name="town" defaultValue={filters.town ?? ''} aria-label="Grad" className={fieldClass}>
           <option value="">Svi gradovi</option>
@@ -203,6 +235,7 @@ export function SearchFilters({ filters }: { filters: ListingFilters }) {
         Prikaži i prodane oglase
       </label>
 
+      </div>
       </div>
 
       {activeCount > 0 && (

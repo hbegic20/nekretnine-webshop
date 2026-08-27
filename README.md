@@ -22,39 +22,75 @@ Three documents describe the project and are worth reading in this order:
 ## Running it locally
 
 **You need:** Node 20 or newer (CI and the Docker images run 24) and Docker
-Desktop, running.
+Desktop, running. Nothing else — no Postgres on your machine, no global CLIs.
 
 ```bash
-npm install
-cp backend/.env.example backend/.env
+git clone git@github.com:hbegic20/nekretnine-webshop.git
+cd nekretnine-webshop
+npm install                          # installs all three workspaces at once
+cp backend/.env.example backend/.env # the only file you must create
 npm run dev
 ```
 
-That is the whole setup. `npm run dev` does the rest:
+That is the whole setup. Within about a minute you have a working site with
+data in it.
 
-1. starts the Postgres container and waits until it accepts connections
-2. applies any migrations that have not run yet
-3. seeds test data **only if the database is empty** — it will not overwrite
-   listings you have been working on
-4. runs the API and the frontend together, with output labelled `[api]` and
-   `[web]`
+### What `npm run dev` actually does
+
+It is one command on purpose: "start the servers" and "make sure the database
+they need exists and has a schema" are the same job from where you are sitting,
+and splitting them is how you end up staring at a connection error.
+
+1. **Checks the ground** — is Docker running, is the container stack already
+   holding ports 3000/4000, is anything else on those ports. Each failure gets
+   a message naming the fix rather than a bind error a minute later.
+2. **Starts Postgres** in Docker and waits until it actually accepts
+   connections, not merely until the container exists.
+3. **Applies migrations** — every `.sql` file under `backend/src/db/migrations`
+   that has not run yet.
+4. **Seeds, but only into an empty database.** It counts the users first; if
+   there are any, it skips. Re-seeding a database you have been working in
+   would delete the listings you made.
+5. **Runs both dev servers** with their output labelled `[api]` and `[web]`.
 
 | | |
 |---|---|
 | Frontend | http://localhost:3000 |
 | API | http://localhost:4000 |
-| Health check | http://localhost:4000/health/ready |
+| Liveness | http://localhost:4000/health |
+| Readiness (checks the DB) | http://localhost:4000/health/ready |
 
-**Ctrl-C stops both servers and leaves Postgres running.** Stop that too with
-`npm run db:down` when you are finished for the day.
+**Ctrl-C stops both servers and leaves Postgres running** — that is deliberate,
+since the database takes the longest to start. Stop it too with
+`npm run db:down` when you are done for the day.
 
-`frontend/.env.local` is optional in development — `next.config.ts` falls back
-to `http://localhost:4000`. Copy `frontend/.env.example` to `.env.local` only
-if you need to point the frontend somewhere else.
+### Environment files
 
-### Seeded accounts
+| File | Required? | What it is for |
+|---|---|---|
+| `backend/.env` | **Yes** | `DATABASE_URL` has no default, so the API exits at boot without it. Copy it from `backend/.env.example` and change nothing — the defaults match the Docker Postgres. |
+| `frontend/.env.local` | No | `next.config.ts` already falls back to `http://localhost:4000`. Copy `frontend/.env.example` only if you need the frontend pointed somewhere else. |
 
-Both use the password `lozinka123`:
+`.env` files are gitignored and always will be. `.env.example` files carry
+placeholders only.
+
+### The seed data
+
+`npm run db:seed` creates, all owned by the seed seller:
+
+- **2 accounts** — an admin and a seller
+- **10 listings** across the seven towns: 8 `PUBLISHED`, 1 `PENDING` so the
+  moderation queue has something in it, and 1 `DRAFT` so the seller dashboard
+  is not a wall of identical badges
+- **30 photos** — three per listing
+
+The photos are *drawn, not downloaded*: SVG scenes rasterised by sharp, with a
+different building per property type and four times of day. That keeps the seed
+working offline, avoids a licence question, and still gives the card grid real
+images to lay out. They go through the same resize, EXIF-strip and WebP
+encoding as a genuine upload, at all three sizes.
+
+Both accounts use the password `lozinka123`:
 
 | Email | Role |
 |---|---|
@@ -63,6 +99,38 @@ Both use the password `lozinka123`:
 
 Admins are made by promoting an existing user, never by signing up. There is no
 public admin registration and there never will be (SPEC §2).
+
+**Re-seeding** (`npm run db:seed`) deletes the seed seller's listings and their
+photo files first, then recreates everything. Your own account and anything you
+created under it are untouched. The photos are drawn from a fixed seed, so the
+same listing gets the same picture every time — otherwise every reset would
+reshuffle the grid and you could not tell a layout change from a data change.
+
+### Starting from nothing again
+
+When the database is in a state you would rather not debug:
+
+```bash
+docker compose -f infra/docker-compose.yml down -v   # -v deletes the volume too
+npm run dev                                          # recreates, migrates, re-seeds
+```
+
+### Running the pieces separately
+
+`npm run dev` is the convenient path, not the only one:
+
+```bash
+npm run db:up            # just Postgres
+npm run db:migrate       # just the migrations
+npm run db:seed          # just the seed
+npm run dev:backend      # just the API, on 4000
+npm run dev:frontend     # just Next, on 3000
+npm run db:psql          # a psql shell inside the container
+```
+
+There is also a second database, `nekretnine_test`, which `npm run test:api`
+creates and migrates by itself on first run. It lives on the same Postgres and
+is truncated between tests, so your development data is never touched.
 
 ---
 
@@ -235,12 +303,12 @@ npm run db:migrate    # apply it
 
 **"Could not reach Postgres"** from the tests — `npm run db:up`.
 
-**The database is in a strange state and you want a clean one:**
+**The database is in a strange state** — see
+[Starting from nothing again](#starting-from-nothing-again).
 
-```bash
-docker compose -f infra/docker-compose.yml down -v   # deletes the volume too
-npm run dev                                          # recreates and re-seeds
-```
+**No photos on any card** — the seed only runs into an empty database, so a
+database created before the photos existed has none. `npm run db:seed`
+recreates them.
 
 **Uploaded images disappeared** — `backend/uploads/` is gitignored and local
 only. In production the app refuses to start with `STORAGE_DRIVER=disk` at all,

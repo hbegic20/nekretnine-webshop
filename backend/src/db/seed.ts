@@ -1,8 +1,11 @@
 import argon2 from 'argon2'
-import { eq, sql } from 'drizzle-orm'
+import { eq, inArray, sql } from 'drizzle-orm'
 import { TOWNS, DEFAULT_EXPIRY_DAYS } from 'shared'
 import { db, pool } from './index.js'
-import { listings, users, type NewListing } from './schema.js'
+import { images, listings, users, type NewListing } from './schema.js'
+import { storeListingImage } from '../services/images.js'
+import { storage } from '../storage/index.js'
+import { placeholderPhoto } from './seed-images.js'
 import { env } from '../env.js'
 import { log } from '../log.js'
 
@@ -66,7 +69,33 @@ async function main(): Promise<void> {
   const adminId = await upsertUser('admin@nekretnine.test', 'Admin', true)
   const sellerId = await upsertUser('prodavac@nekretnine.test', 'Amir Prodavac', false)
 
-  // Start clean so re-running does not pile up duplicates.
+  /*
+   * Start clean so re-running does not pile up duplicates.
+   *
+   * The image files have to go first, and by hand. Deleting a listing cascades
+   * its `images` rows away, but nothing in the database knows about the files
+   * on disk — so without this every re-seed would leave another ten orphaned
+   * photos in the uploads directory, growing forever and belonging to nothing.
+   */
+  const doomed = await db
+    .select({ id: listings.id })
+    .from(listings)
+    .where(eq(listings.ownerId, sellerId))
+
+  if (doomed.length > 0) {
+    const oldImages = await db
+      .select({ storageKey: images.storageKey, thumbKey: images.thumbKey })
+      .from(images)
+      .where(inArray(images.listingId, doomed.map((row) => row.id)))
+
+    await Promise.all(
+      oldImages.flatMap((image) => [
+        storage.delete(image.storageKey).catch(() => undefined),
+        storage.delete(image.thumbKey).catch(() => undefined),
+      ]),
+    )
+  }
+
   const removed = await db.delete(listings).where(eq(listings.ownerId, sellerId)).returning({ id: listings.id })
 
   const now = new Date()
@@ -100,7 +129,31 @@ async function main(): Promise<void> {
 
   const inserted = await db.insert(listings).values(rows).returning({ id: listings.id })
 
+  /*
+   * Photos, drawn rather than downloaded (see seed-images.ts).
+   *
+   * Sequential rather than Promise.all: each one rasterises an SVG and encodes
+   * two WebPs, and firing thirty of those at once makes sharp fight itself for
+   * threads on a laptop that is also running two dev servers.
+   */
+  let photos = 0
+  for (const [index, row] of inserted.entries()) {
+    const type = rows[index]?.propertyType ?? 'apartment'
+    // Three per listing: enough for the gallery arrows to have something to do,
+    // few enough that seeding stays under a couple of seconds.
+    for (let position = 0; position < 3; position += 1) {
+      await storeListingImage({
+        listingId: row.id,
+        body: await placeholderPhoto(type, index * 10 + position),
+        position,
+        isCover: position === 0,
+      })
+      photos += 1
+    }
+  }
+
   log.info('seed complete', {
+    photos,
     removedOldListings: removed.length,
     listings: inserted.length,
     adminId,

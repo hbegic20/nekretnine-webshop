@@ -135,7 +135,53 @@ export async function addImage(
    * Publishing those alongside a property listing would hand out the seller's
    * exact location, and often their home address, without anyone intending it.
    */
-  const base = () => sharp(body, { limitInputPixels: 50_000_000 }).rotate()
+  const nextPosition = await db
+    .select({ value: max(images.position) })
+    .from(images)
+    .where(eq(images.listingId, listingId))
+
+  const row = await storeListingImage({
+    listingId,
+    body,
+    position: (nextPosition[0]?.value ?? -1) + 1,
+    // The first photo becomes the cover automatically. A listing whose card
+    // shows no picture looks broken, and asking someone to pick a cover
+    // before they have uploaded a second photo is a pointless step.
+    isCover: (existing[0]?.count ?? 0) === 0,
+  })
+
+  const returnedToReview = await returnToReviewIfPublished(listingId, user)
+  log.info('image added', { listingId, imageId: row.id })
+
+  return { image: toListingImage(row), returnedToReview }
+}
+
+export interface StoreImageInput {
+  listingId: string
+  body: Buffer
+  position: number
+  isCover: boolean
+}
+
+/**
+ * Resize, encode, store, record. The part of an upload that is the same
+ * whoever is asking.
+ *
+ * Split out of `addImage` so the development seed can create images without
+ * going through the checks around it — the seed has no `User` to own the
+ * listing, and `returnToReviewIfPublished` would knock every published sample
+ * listing back into the moderation queue the moment it got a photo.
+ *
+ * `.rotate()` with no argument applies the EXIF orientation flag. Phone
+ * cameras store the sensor image unrotated and record "this is actually
+ * portrait" in EXIF; skip this and every photo taken vertically appears on its
+ * side. It also matters that sharp drops metadata by default on output: EXIF
+ * from a phone routinely carries the GPS coordinates where the photo was
+ * taken, and publishing those alongside a property listing hands out the
+ * seller's exact location without anyone intending it.
+ */
+export async function storeListingImage(input: StoreImageInput): Promise<Image> {
+  const base = () => sharp(input.body, { limitInputPixels: 50_000_000 }).rotate()
 
   /*
    * `resolveWithObject` returns the encoded bytes *and* the final dimensions
@@ -158,7 +204,7 @@ export async function addImage(
       .toBuffer(),
   ])
 
-  const key = `listings/${listingId}/${randomUUID()}`
+  const key = `listings/${input.listingId}/${randomUUID()}`
   const storageKey = `${key}.webp`
   const thumbKey = `${key}-thumb.webp`
 
@@ -167,36 +213,22 @@ export async function addImage(
     storage.put(thumbKey, thumbBuffer, 'image/webp'),
   ])
 
-  const nextPosition = await db
-    .select({ value: max(images.position) })
-    .from(images)
-    .where(eq(images.listingId, listingId))
-
-  const isFirst = (existing[0]?.count ?? 0) === 0
-
   const inserted = await db
     .insert(images)
     .values({
-      listingId,
+      listingId: input.listingId,
       storageKey,
       thumbKey,
       width: large.info.width,
       height: large.info.height,
-      position: (nextPosition[0]?.value ?? -1) + 1,
-      // The first photo becomes the cover automatically. A listing whose card
-      // shows no picture looks broken, and asking someone to pick a cover
-      // before they have uploaded a second photo is a pointless step.
-      isCover: isFirst,
+      position: input.position,
+      isCover: input.isCover,
     })
     .returning()
 
   const row = inserted[0]
   if (!row) throw new Error('insert returned no row')
-
-  const returnedToReview = await returnToReviewIfPublished(listingId, user)
-  log.info('image added', { listingId, imageId: row.id })
-
-  return { image: toListingImage(row), returnedToReview }
+  return row
 }
 
 export async function listImages(listingId: string): Promise<Image[]> {

@@ -116,6 +116,8 @@ export default function MapView({ pins = [], town, picker, className }: MapViewP
   const map = useRef<MapLibreMap | null>(null)
   const pinMarkers = useRef<Marker[]>([])
   const placed = useRef<Marker | null>(null)
+  /** The style URL currently applied, so the theme effect can tell a real change from a re-run. */
+  const appliedStyle = useRef<string | null>(null)
   const theme = useThemeMode()
 
   const townCentre = town ? TOWNS.find((t) => t.slug === town) : undefined
@@ -166,6 +168,18 @@ export default function MapView({ pins = [], town, picker, className }: MapViewP
       attributionControl: { compact: true },
     })
 
+    appliedStyle.current = STYLES[latest.current.theme]
+
+    /*
+     * Surfaced rather than swallowed. MapLibre reports a failed style, a
+     * missing sprite or a blocked tile through this event and otherwise just
+     * renders an empty map — which is a genuinely confusing thing to debug
+     * from the outside, since an empty map and a broken one look identical.
+     */
+    instance.on('error', (event) => {
+      console.error('map error', event.error?.message ?? event)
+    })
+
     instance.addControl(new NavigationControl({ showCompass: false }), 'top-right')
     instance.on('click', (event: MapMouseEvent) => {
       const onChange = latest.current.picker?.onChange
@@ -183,9 +197,21 @@ export default function MapView({ pins = [], town, picker, className }: MapViewP
    * Style swaps rather than a rebuild. `setStyle` keeps markers, which are DOM
    * overlays rather than style layers, so the map re-skins without the pins
    * blinking out.
+   *
+   * The guard is the whole point. This effect also runs on mount, moments
+   * after the constructor was handed the very same URL — and calling setStyle
+   * while the first style is still being fetched aborts that load. The map
+   * ends up having painted the style's background layer and nothing else,
+   * which looks exactly like a solid black rectangle and nothing like an
+   * error.
    */
   useEffect(() => {
-    map.current?.setStyle(STYLES[theme])
+    const instance = map.current
+    const next = STYLES[theme]
+    if (!instance || appliedStyle.current === next) return
+
+    appliedStyle.current = next
+    instance.setStyle(next)
   }, [theme])
 
   useEffect(() => {

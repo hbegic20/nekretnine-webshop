@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import {
   countActiveFilters,
   formatDate,
+  formatPrice,
   listingFiltersToQuery,
   parseListingFilters,
   slavicPlural,
@@ -159,5 +160,23 @@ describe('formatDate', () => {
   it('hands back anything it does not understand', () => {
     expect(formatDate('')).toBe('')
     expect(formatDate('nonsense')).toBe('nonsense')
+  })
+})
+
+describe('formatPrice', () => {
+  /*
+   * Intl.NumberFormat('bs-BA') produced "169.000" on the server and "169,000"
+   * in a browser without data for the locale — visible on the map, where
+   * client-rendered markers disagreed with server-rendered cards on the same
+   * screen. These tests pin the format so it cannot drift back.
+   */
+  it('groups thousands with a dot, the way this market writes it', () => {
+    expect(formatPrice(145_000)).toBe('145.000 KM')
+    expect(formatPrice(1_250_000)).toBe('1.250.000 KM')
+  })
+
+  it('leaves small numbers alone', () => {
+    expect(formatPrice(600)).toBe('600 KM')
+    expect(formatPrice(0)).toBe('0 KM')
   })
 })

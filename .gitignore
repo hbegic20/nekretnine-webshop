@@ -12,3 +12,6 @@ backend/uploads/
 coverage/
 next-env.d.ts
 *.tsbuildinfo
+
+# Copied from node_modules before dev/build — see frontend/scripts/copy-map-worker.mjs
+frontend/public/maplibre/

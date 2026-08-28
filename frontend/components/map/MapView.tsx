@@ -8,6 +8,7 @@ import {
   Marker,
   NavigationControl,
   Popup,
+  setWorkerUrl,
   type MapMouseEvent,
 } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
@@ -29,6 +30,22 @@ import { useThemeMode, type ThemeMode } from '@/lib/use-theme-mode'
  * Doing the renderer move once rather than twice is most of why it happened
  * now rather than after the deploy.
  */
+
+/*
+ * Where the tile-parsing worker lives.
+ *
+ * MapLibre otherwise derives this at runtime from `import.meta.url` of its own
+ * bundle and asks for a sibling file — which under Next resolves to a path in
+ * /_next/static/chunks that Next never emits, so the request falls through to
+ * the router and returns the HTML 404 page. The browser rejects that with
+ * "Failed to load module script … non-JavaScript MIME type", tiles are never
+ * parsed, and the map renders as a black rectangle with perfectly working
+ * markers and controls, because those are DOM and never touch the worker.
+ *
+ * The file is copied into public/maplibre by scripts/copy-map-worker.mjs,
+ * which runs before dev and before build.
+ */
+setWorkerUrl('/maplibre/maplibre-gl-worker.mjs')
 
 const STYLES: Record<ThemeMode, string> = {
   light: 'https://tiles.openfreemap.org/styles/positron',

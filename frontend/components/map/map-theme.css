@@ -1,0 +1,106 @@
+/*
+ * MapLibre's own chrome, moved onto our tokens.
+ *
+ * maplibre-gl.css hardcodes white: `.maplibregl-popup-content` sets
+ * `background: #fff` and no `color` at all, so the text colour is inherited
+ * from the page. In light mode that happens to look right. In dark mode the
+ * text turns light while the popup stays white, and the popup becomes
+ * unreadable — a bug that only appears in one theme, which is why it survived
+ * the migration.
+ *
+ * Imported *after* maplibre-gl.css in MapView.tsx, deliberately. These
+ * selectors have the same specificity as the ones they replace, so the order
+ * of the imports is what decides the winner. Putting them in globals.css would
+ * look tidier and lose, because the map's stylesheet arrives later in its own
+ * chunk.
+ */
+
+.maplibregl-popup-content {
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-sm);
+  box-shadow: var(--shadow-lift);
+  padding: 0.7rem 0.85rem;
+}
+
+.maplibregl-popup-content a {
+  color: var(--accent);
+}
+
+.maplibregl-popup-close-button {
+  color: var(--muted);
+  padding-right: 0.35rem;
+}
+
+.maplibregl-popup-close-button:hover {
+  background: transparent;
+  color: var(--ink);
+}
+
+/*
+ * The little arrow is a CSS triangle made of borders, so it is recoloured per
+ * anchor: whichever border faces the popup is the one that shows.
+ */
+.maplibregl-popup-anchor-top .maplibregl-popup-tip,
+.maplibregl-popup-anchor-top-left .maplibregl-popup-tip,
+.maplibregl-popup-anchor-top-right .maplibregl-popup-tip {
+  border-bottom-color: var(--surface);
+}
+
+.maplibregl-popup-anchor-bottom .maplibregl-popup-tip,
+.maplibregl-popup-anchor-bottom-left .maplibregl-popup-tip,
+.maplibregl-popup-anchor-bottom-right .maplibregl-popup-tip {
+  border-top-color: var(--surface);
+}
+
+.maplibregl-popup-anchor-left .maplibregl-popup-tip {
+  border-right-color: var(--surface);
+}
+
+.maplibregl-popup-anchor-right .maplibregl-popup-tip {
+  border-left-color: var(--surface);
+}
+
+/* Zoom buttons and the attribution pill, same treatment. */
+.maplibregl-ctrl-group {
+  background: var(--surface);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-card);
+}
+
+.maplibregl-ctrl-group button + button {
+  border-top-color: var(--hairline);
+}
+
+.maplibregl-ctrl-group button:not(:disabled):hover {
+  background: var(--surface-sunken);
+}
+
+.maplibregl-ctrl-attrib,
+.maplibregl-ctrl-attrib.maplibregl-compact {
+  background: var(--surface);
+  color: var(--muted);
+}
+
+.maplibregl-ctrl-attrib a {
+  color: var(--muted);
+}
+
+/*
+ * The control icons are background-image data URIs drawn in black, so there is
+ * no `fill` to set. Inverting them is the honest fix — they are monochrome
+ * glyphs, so an invert is exactly "draw them light instead".
+ *
+ * Scoped through the same two selectors globals.css uses for dark, so an
+ * explicit light choice on a dark OS keeps dark icons.
+ */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) .maplibregl-ctrl-icon {
+    filter: invert(1) hue-rotate(180deg);
+  }
+}
+
+:root[data-theme='dark'] .maplibregl-ctrl-icon {
+  filter: invert(1) hue-rotate(180deg);
+}

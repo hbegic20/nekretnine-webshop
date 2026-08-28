@@ -12,6 +12,9 @@ import {
   type MapMouseEvent,
 } from 'maplibre-gl'
 import 'maplibre-gl/dist/maplibre-gl.css'
+// After MapLibre's own stylesheet, and that order is the whole mechanism —
+// these selectors have the same specificity as the ones they replace.
+import './map-theme.css'
 import { REGION_BOUNDS, TOWNS, formatPrice, type MapPin, type Town } from 'shared'
 import { useThemeMode, type ThemeMode } from '@/lib/use-theme-mode'
 

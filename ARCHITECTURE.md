@@ -30,7 +30,7 @@ direction — a proposal that didn't survive its own tradeoff.
 flowchart TB
     subgraph client["User's browser"]
         UI["Next.js UI<br/>React Server + Client Components<br/>Tailwind CSS"]
-        MAP["Leaflet map<br/>OpenStreetMap tiles"]
+        MAP["MapLibre map<br/>OpenFreeMap tiles"]
     end
 
     subgraph frontend["Next.js server — port 3000"]
@@ -96,7 +96,7 @@ Notable frontend decisions:
   string (`?town=bugojno&priceMax=150000&beds=2`), not in React state. A search
   becomes shareable, bookmarkable, and back-button-correct for free, and the
   server can render the filtered page directly.
-- **The map is a Client Component, lazy-loaded.** Leaflet touches `window` and
+- **The map is a Client Component, lazy-loaded.** MapLibre touches `window` and
   can't server-render. Keeping it isolated means the rest of the page still
   renders on the server.
 
@@ -558,11 +558,30 @@ too often.
 
 ### 7.4 The map, and where its tiles come from
 
-**Leaflet with OpenStreetMap's own tiles.** No API key, no billing account, no
+**MapLibre with OpenFreeMap tiles.** No API key, no billing account, no
 per-request quota — which is why no map service appears in the dependency list
 alongside R2 and Resend.
 
-Three things worth recording:
+*Revised 2026-08-28. This section originally read "Leaflet with OpenStreetMap's
+own tiles", and the trigger it named — "switching is a one-line URL change" —
+turned out not to hold, so the reasoning is recorded rather than quietly
+replaced.*
+
+**Why it changed.** Two things at once. OSM's raster tiles are light-only, and
+the app gained a dark theme, so the map sat as a white rectangle on a dark
+page. And the escape hatch this section promised had closed: by August 2026
+every keyless raster provider wanted an API key, CARTO included — their terms
+were updated on 26 August 2026, and keyless requests return watermarked tiles.
+The remaining keyless, no-limit, commercial-use-permitted basemaps are all
+vector, which means MapLibre rather than Leaflet.
+
+**Why now rather than after launch.** The end state is a basemap served from
+our own R2 bucket as a single PMTiles file — no third party in the request
+path at all, and R2's egress is free. That is MapLibre too, so moving the
+renderer now means the migration happens once instead of twice; switching the
+tile source afterwards is a style URL.
+
+Four things worth recording:
 
 **The map is the reason there is no geocoding service.** Sellers place their
 listing by clicking the map, so nothing ever has to turn an address into
@@ -570,26 +589,27 @@ coordinates. That avoids a paid dependency, and it is also more accurate here:
 addresses in small Bosnian towns geocode badly, while the person selling the
 house knows exactly where it is.
 
-**Markers are `divIcon`s, not images.** Leaflet's default marker is a PNG whose
-URL it assembles at runtime, which bundlers rewrite — the famous broken-image
-bug, usually patched by re-pointing Leaflet at the right files. A `divIcon` is
-just HTML, so the problem never arises, and it lets each marker show its price,
-which is the most useful thing a property pin can do.
+**Markers are HTML elements, not images.** No sprite sheet and no icon URL for
+a bundler to break, and each marker shows its price — the most useful thing a
+property pin can do. This survived the migration unchanged in spirit: it was a
+Leaflet `divIcon` and is now a MapLibre `Marker` built from a DOM node.
 
-**The map is client-only.** Leaflet touches `window` while measuring its
+**Popups are built as DOM, not with `setHTML`.** Listing titles are typed by
+sellers, and the moderation queue is not an HTML sanitiser. Assigning
+`textContent` cannot execute anything, so there is no escaping to remember and
+no way to forget it.
+
+**The map is client-only.** MapLibre touches `window` while measuring its
 container, so it is loaded with `next/dynamic` and `ssr: false` behind a thin
 Client Component boundary. Pages stay Server Components; the map is the single
 island that is not. It is therefore invisible to search engines — fine, since
 listing pages carry the SEO and nobody finds property by indexing a map tile.
 
-**Tile usage policy — the one thing to watch before launch.** OSM's tiles are
-donated infrastructure, and their usage policy asks that heavy or commercial
-use move to a proper provider. At this site's traffic we are comfortably
-inside what it permits. The trigger to switch is real traffic growth or any
-commercial framing of the site; MapTiler and Stadia both have free tiers that
-cover a site this size, and switching is a one-line URL change in
-`LeafletMap.tsx` plus an attribution update. Flagged again in the
-pre-production list.
+**Attribution comes from the TileJSON.** The style JSON carries no attribution
+field, which looks like an omission until you follow the `openmaptiles` source
+to `tiles.openfreemap.org/planet`, where it is. MapLibre resolves that and
+renders it, so the credit OpenFreeMap's terms require appears without us
+setting it — do not "tidy away" the attribution control.
 
 ### 7.3 When to revisit
 
@@ -719,7 +739,8 @@ Per `CLAUDE.md`, nothing gets installed without a yes. This is the agreed list.
 **Backend runtime:** `express`, `drizzle-orm`, `drizzle-kit`, `pg`, `zod`,
 `argon2`, `sharp`, `express-rate-limit`, `@aws-sdk/client-s3`, `nodemailer`.
 
-**Frontend:** `leaflet`, `react-leaflet`.
+**Frontend:** `maplibre-gl`. (Was `leaflet` + `react-leaflet` until 2026-08-28 —
+see §7.4 for why the map moved.)
 
 **Dev tooling:** `typescript`, `tsx`, `vitest`, `eslint`, `prettier`.
 

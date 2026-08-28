@@ -168,7 +168,9 @@ bathrooms, size range, and free-text keyword search using a Postgres GIN index
 with `unaccent`, so "kuca" typed on an English keyboard matches "kuća". Filters
 live in the URL, so a search can be shared or bookmarked.
 
-**Map** — every match plotted with Leaflet, unpaginated. Coordinates come from
+**Map** — every match plotted with MapLibre on OpenFreeMap tiles, which need
+no API key and have no request limit, and which follow the light/dark theme.
+Unpaginated. Coordinates come from
 the seller dropping a pin during submission; there is no geocoding service.
 
 **Detail pages** — server-rendered for SEO, with an image gallery, a small map,

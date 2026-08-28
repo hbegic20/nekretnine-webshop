@@ -1,14 +1,14 @@
 'use client'
 
 import dynamic from 'next/dynamic'
-import type { LeafletMapProps } from './LeafletMap'
+import type { MapViewProps } from './MapView'
 
 /**
- * Leaflet cannot be server-rendered.
+ * The map cannot be server-rendered.
  *
- * It reaches for `window` and `document` while measuring the container, and on
- * the server neither exists — so importing it directly into a Server Component
- * crashes the render. `ssr: false` tells Next to skip it on the server and
+ * MapLibre reaches for `window` and `document` as soon as it measures its
+ * container, and on the server neither exists — so importing it into a Server
+ * Component crashes the render. `ssr: false` tells Next to skip it there and
  * load it only in the browser.
  *
  * `next/dynamic` with `ssr: false` is itself only allowed inside a Client
@@ -20,7 +20,7 @@ import type { LeafletMapProps } from './LeafletMap'
  * listing pages carry the SEO, and nobody finds a property site by indexing a
  * map tile.
  */
-const LeafletMap = dynamic(() => import('./LeafletMap'), {
+const MapView = dynamic(() => import('./MapView'), {
   ssr: false,
   loading: () => (
     <div
@@ -34,6 +34,6 @@ const LeafletMap = dynamic(() => import('./LeafletMap'), {
   ),
 })
 
-export function ListingMap(props: LeafletMapProps) {
-  return <LeafletMap {...props} />
+export function ListingMap(props: MapViewProps) {
+  return <MapView {...props} />
 }

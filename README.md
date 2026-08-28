@@ -331,6 +331,14 @@ npm run db:migrate    # apply it
 database created before the photos existed has none. `npm run db:seed`
 recreates them.
 
+**"Failed to load module script … non-JavaScript MIME type"**, or a map that
+renders as a black rectangle with working markers — `npm run build` was run
+while `npm run dev` was live. They share `frontend/.next`, so the build
+replaces chunks the running dev server is still serving, and the browser gets
+a 404 HTML page where a script should be. MapLibre parses tiles in a worker
+module, so a missing chunk shows up as a blank basemap rather than as an
+error. Stop the dev server, `rm -rf frontend/.next`, and start it again.
+
 **Uploaded images disappeared** — `backend/uploads/` is gitignored and local
 only. In production the app refuses to start with `STORAGE_DRIVER=disk` at all,
 because container filesystems are wiped on every deploy.
